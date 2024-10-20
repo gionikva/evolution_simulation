@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from uuid import uuid4
-from pygame import Vector2
+from pygame import Vector2, Rect
 import math
 from classes.constants import *
 from classes.utils import *
@@ -37,16 +37,16 @@ class Candy():
     def random(*, rng: Generator,
                   mean_size: float,
                   sdv: float,
+                  bounds: Rect,
                   gen_position: Callable[[], Vector2] = None) -> Self:
         size = max(utils.sample_normal(rng=rng,
                                  mean=mean_size,
                                  std_dev=sdv),
                    Candy.MIN_SIZE)
-        
         radius = utils.radius(size)
         
-        position = Vector2(rng.uniform(radius, SCREEN_WIDTH - radius),
-                    rng.uniform(radius, SCREEN_HEIGHT - radius))
+        position = Vector2(rng.uniform(bounds.left + radius, bounds.right - radius),
+                    rng.uniform(bounds.top + radius, bounds.bottom - radius))
         
         return Candy(size=size,
                      position=position,

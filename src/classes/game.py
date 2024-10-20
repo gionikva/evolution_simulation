@@ -12,6 +12,8 @@ from numpy import random
 class Game():
     SCREEN_WIDTH=1920
     SCREEN_HEIGHT=1080
+    SEPARATOR_WIDTH = 50
+
     BLOB_COLOR = (100, 100, 255)
     CANDY_COLOR = (146, 77, 155)
     FRICTION = 0.1
@@ -98,16 +100,29 @@ class Game():
         return blobs
     
    
+    def _generate_candies(self, n: int, region: Rect) -> list[Candy]:
+        candies = []
+        for i in range(n):
+            candy = Candy.random(mean_size=self._mean_candy_sizes,
+                                     sdv=self._candy_size_sdv,
+                                     rng=self._rng,
+                                     bounds=region)
+            candy.position = self._bound_position(candy.position, candy.radius())
+            candies.add(candy)
+        return candies
     
     def _gen_initial_candies(self, n):
         candies = set()
-        for i in range(n):
-            
-            candy = Candy.random(mean_size=self._mean_candy_sizes,
-                                     sdv=self._candy_size_sdv,
-                                     rng=self._rng)
-            candy.position = self._bound_position(candy.position, candy.radius())
-            candies.add(candy)
+        candies.update(self._generate_candies(self._n_candies[0],
+                                              Rect(left=0,
+                                                   top=0,
+                                                   width=(self.SCREEN_WIDTH - self.SEPARATOR_WIDTH) / 2,
+                                                   height=self.SCREEN_HEIGHT)))
+        candies.update(self._generate_candies(self._n_candies[1],
+                                              Rect(left=(self.SCREEN_WIDTH + self.SEPARATOR_WIDTH)/2,
+                                                   top=0,
+                                                   width=(self.SCREEN_WIDTH - self.SEPARATOR_WIDTH) / 2,
+                                                   height=self.SCREEN_HEIGHT)))
         return candies
     
     def _reset_candies(self):
@@ -322,7 +337,7 @@ class Game():
         self._draw_separators()
         
     def _separators(self) -> tuple[Rect, Rect]:
-        width = 50
+        width = self.SEPARATOR_WIDTH
         height = self.SCREEN_HEIGHT * (1 - self._gap)/2
         return (Rect(self.SCREEN_WIDTH/2 - width/2,
                     0,
