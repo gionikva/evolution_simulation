@@ -3,15 +3,16 @@ from pygame.time import Clock
 from pygame import Rect
 from classes.blob import *
 from classes.candy import Candy
-from classes.constants import SIZE_SCALE
+from classes.constants import SIZE_SCALE, SIM_WIDTH, SIM_HEIGHT
 import math
 from numpy import random
 
 
 
 class Game():
-    SCREEN_WIDTH=1920
-    SCREEN_HEIGHT=1080
+    SIM_WIDTH=SIM_WIDTH
+    SIM_HEIGHT=SIM_HEIGHT
+    STATBAR_HEIGHT = 100
     SEPARATOR_WIDTH = 50
     
     N_INTERVALS = 40
@@ -22,6 +23,10 @@ class Game():
     
     # Whether the candy should be regenerated for each generation.
     RESET_CANDY_PER_LIFESPAN = True
+    
+    # Limit after which candy will start to disappear.
+    # This is here to maintain performance.
+    CANDY_LIMIT = 500
         
     def __init__(self, *,
                 # Rng seed
@@ -46,6 +51,8 @@ class Game():
                 # Energy a candy provides when \
                 # eaten per unit size.
                 candy_energy_density: float = 2000,
+                
+                cutoff_sharpness: float = 2,
                         
                 # Starting number of blobs
                 n_blobs: int = 10,
@@ -77,6 +84,7 @@ class Game():
         self._candy_size_sdvs = candy_size_sdvs
         self._candy_spawn_rates = candy_spawn_rates
         self._n_candies = n_candies
+        self._cutoff_sharpness = cutoff_sharpness
         
         self._intervals: list[Rect] = self._gen_intervals()
         
@@ -89,11 +97,11 @@ class Game():
     
     def _interpolate(self, *, x: float, range: tuple[float, float]):
         low, high = range
-        x = x / self.SCREEN_WIDTH
+        x = x / self.SIM_WIDTH
         
         # Steepness.
         # k=1 is a line
-        k = 2
+        k = self._cutoff_sharpness
         
         rawval = 1 - (1 / (1 + (1 / x - 1)**(-k)))
         
@@ -105,15 +113,25 @@ class Game():
         # return slope * x + range[0]
     
     def _interval_width(self):
-        return self.SCREEN_WIDTH / self.N_INTERVALS
+        return self.SIM_WIDTH / self.N_INTERVALS
     
     def _gen_interval(self, i: int) -> Rect:
-        srect = Rect(self._interval_width() * i,
+        left = self._interval_width() * i
+        width = self._interval_width()
+        rect = Rect(left,
                      0, 
-                     self._interval_width(),
-                     self.SCREEN_HEIGHT)
+                     width,
+                     self.SIM_HEIGHT)
         
-        return srect
+        separators = self._separators()
+        
+        if rect.collidelist(separators) != -1:
+            rect = Rect(left,
+                         separators[0].bottom,
+                         width,
+                         self._gap * self.SIM_HEIGHT)
+        
+        return rect
     
     def _gen_intervals(self) -> list[Rect]:
         return [self._gen_interval(i) for i in range(self.N_INTERVALS)]
@@ -154,15 +172,15 @@ class Game():
                                               self._candy_size_sdvs[0],
                                               Rect(0,
                                                    0,
-                                                   (self.SCREEN_WIDTH - self.SEPARATOR_WIDTH) / 2,
-                                                   self.SCREEN_HEIGHT)))
+                                                   (self.SIM_WIDTH - self.SEPARATOR_WIDTH) / 2,
+                                                   self.SIM_HEIGHT)))
         candies.update(self._generate_candies(self._n_candies[1],
                                               self._mean_candy_sizes[1],
                                               self._candy_size_sdvs[1],
-                                              Rect((self.SCREEN_WIDTH + self.SEPARATOR_WIDTH)/2,
+                                              Rect((self.SIM_WIDTH + self.SEPARATOR_WIDTH)/2,
                                                    0,
-                                                   (self.SCREEN_WIDTH - self.SEPARATOR_WIDTH) / 2,
-                                                   self.SCREEN_HEIGHT)))
+                                                   (self.SIM_WIDTH - self.SEPARATOR_WIDTH) / 2,
+                                                   self.SIM_HEIGHT)))
         return candies
     
     def _reset_candies(self):
@@ -188,6 +206,24 @@ class Game():
         cleft, cright = (position.x - radius, position.x + radius)
         ctop, cbottom = (position.y - radius, position.y + radius)
         
+       
+            
+        # crect = Rect(cleft, ctop, radius*2, radius*2)
+        
+        if rect.top <= position.y <= rect.bottom:
+            if cright > rect.left and cleft < rect.left:
+                return (True, Vector2(rect.left - radius, position.y))
+            
+            if cleft < rect.right and cright > rect.right:
+                return (True, Vector2(rect.right + radius, position.y))
+    
+        if rect.left <= position.x <= rect.right:
+            if ctop < rect.bottom and cbottom > rect.bottom:
+                return (True, Vector2(position.x, rect.bottom + radius))
+            
+            if cbottom > rect.top and ctop < rect.top:
+                return (True, Vector2(position.x, rect.top - radius))
+            
         for corner in [rect.bottomleft, rect.bottomright, rect.topleft, rect.topright]:
             dist = math.sqrt((corner[0] - position.x)**2 + (corner[1]-position.y)**2)
             if dist < radius:
@@ -195,25 +231,7 @@ class Game():
                 r = (s / s.magnitude()) * radius
                 m = s - r
                 return (True, position + m)
-            
-        crect = Rect(cleft, ctop, radius*2, radius*2)
-        
-        if crect.colliderect(rect):
-            ret = (False, None)
-            if cright > rect.left and cleft < rect.left:
-                ret = (True, Vector2(rect.left - radius, position.y))
-            
-            if cleft < rect.right and cright > rect.right:
-                ret = (True, Vector2(rect.right + radius, position.y))
-        
-            if ctop < rect.bottom and cbottom > rect.bottom:
-                ret = (True, Vector2(position.x, rect.bottom + radius))
-            
-            if cbottom > rect.top and ctop < rect.top:
-                ret = (True, Vector2(position.x, rect.top - radius))
-                
-            return ret
-        
+                    
         return (False, None)
     
 
@@ -235,12 +253,12 @@ class Game():
 
     def _move_blob(self, blob, timediff):
         def visible(candy: Candy) -> bool:
-            # for sep in self._separators():
-            #     if sep.clipline((blob.position.x, blob.position.y),
-            #                     (candy.position.x, candy.position.y)) != ():
-            #         # print(sep.clipline((blob.position.x, blob.position.y),
-            #         #             (candy.position.x, candy.position.y)), candy)
-            #         return False
+            for sep in self._separators():
+                if sep.clipline((blob.position.x, blob.position.y),
+                                (candy.position.x, candy.position.y)) != ():
+                    # print(sep.clipline((blob.position.x, blob.position.y),
+                    #             (candy.position.x, candy.position.y)), candy)
+                    return False
             return True
         
         candy = blob.closest_candy(self._candies, visible)
@@ -279,6 +297,10 @@ class Game():
 
     def _reproduce(self, blob) -> Sequence[Blob]:
         f = lambda : self._offspring_position(parent=blob, area=60)
+        
+        if blob.energy / blob.max_energy < 0.5:
+            return []
+        
         offspring = []
         for _ in range(3):
             blob = Blob.random(rng=self._rng, mean_traits=blob.traits, sdvs=self._mutation_sdvs, gen_position=f)
@@ -289,7 +311,7 @@ class Game():
     def _eat(self, blob: Blob) -> Sequence[Candy]:
         eaten_candies = []
         for candy in self._candies:
-            if blob.distance_to(candy) + candy.radius() <= blob.radius():
+            if blob.distance_to(candy) + candy.radius() - blob.radius() <= 0.001:
                 eaten_candies.append(candy)
                 blob.energy = min(blob.max_energy,
                                   blob.energy + self._candy_energy_d * candy.size)
@@ -317,8 +339,10 @@ class Game():
         for interval in self._intervals:
             x = interval.centerx
             
+                
+            
             area_ratio = (interval.width * interval.height) / \
-                         (self.SCREEN_WIDTH * self.SCREEN_HEIGHT)
+                         (self.SIM_WIDTH * self.SIM_HEIGHT)
             int_spawn_rate = self._interpolate(x=x,
                                                range=self._candy_spawn_rates)
             _lambda = int_spawn_rate * timediff * area_ratio
@@ -335,7 +359,11 @@ class Game():
                                     mean_size=mean_size,
                                     bounds=interval)
                 candy.position = self._bound_position(candy.position, candy.radius())
+                
                 self._candies.add(candy)
+                
+                if len(self._candies) > self.CANDY_LIMIT:
+                    self._candies.pop()
         
     def on_loop(self):
         timediff = self._sim_speed * self._loop_clock.tick() / 1000
@@ -406,13 +434,13 @@ class Game():
         
     def _separators(self) -> tuple[Rect, Rect]:
         width = self.SEPARATOR_WIDTH
-        height = self.SCREEN_HEIGHT * (1 - self._gap)/2
-        return (Rect(self.SCREEN_WIDTH/2 - width/2,
+        height = self.SIM_HEIGHT * (1 - self._gap)/2
+        return (Rect(self.SIM_WIDTH/2 - width/2,
                     0,
                     width,
                     height),
-                Rect(self.SCREEN_WIDTH/2 - width/2,
-                    self.SCREEN_HEIGHT - height,
+                Rect(self.SIM_WIDTH/2 - width/2,
+                    self.SIM_HEIGHT - height,
                     width,
                     height))
         
@@ -422,8 +450,8 @@ class Game():
     def run(self):
         pygame.init()
 
-        self.screen = pygame.display.set_mode([self.SCREEN_WIDTH,
-                                          self.SCREEN_HEIGHT])
+        self.screen = pygame.display.set_mode([self.SIM_WIDTH,
+                                          self.SIM_HEIGHT+self.STATBAR_HEIGHT])
 
         self._loop_clock.tick()
         self._paused_clock.tick()
@@ -453,7 +481,7 @@ class Game():
 
             
             self.screen.fill((255, 255, 255))
-            
+            pygame.draw.rect(self.screen, (0, 0, 0), Rect(0, SIM_HEIGHT-1, SIM_WIDTH, 5))
             self._draw()
 
             pygame.display.flip()

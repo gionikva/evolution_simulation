@@ -55,7 +55,7 @@ class Blob():
     
     # Determines how much energy per unit size a blob \
     # loses per second, independent of movement.
-    PASSIVE_ENERGY_LOSS = 2.
+    PASSIVE_ENERGY_LOSS = 10.
     
     # Traits:
     #
@@ -188,8 +188,8 @@ class Blob():
             radius = utils.radius(size) 
             
             if gen_position == None:
-                position = Vector2(rng.uniform(radius, SCREEN_WIDTH - radius),
-                        rng.uniform(radius, SCREEN_HEIGHT - radius))
+                position = Vector2(rng.uniform(radius, SIM_WIDTH - radius),
+                        rng.uniform(radius, SIM_HEIGHT - radius))
             else:
                 position = gen_position()
                 

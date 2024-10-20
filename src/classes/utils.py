@@ -29,6 +29,6 @@ class utils:
     # Used to bound the position of a blob within the
     # dimensions of the screen.
     def bound_position(position: Vector2, radius: float) -> tuple[Vector2, bool]:
-        bx, clampedx = utils._clamp(position.x, radius, SCREEN_WIDTH-radius)
-        by, clampedy =  utils._clamp(position.y, radius, SCREEN_HEIGHT-radius)
+        bx, clampedx = utils._clamp(position.x, radius, SIM_WIDTH-radius)
+        by, clampedy =  utils._clamp(position.y, radius, SIM_HEIGHT-radius)
         return (Vector2(bx, by), clampedx or clampedy) 
