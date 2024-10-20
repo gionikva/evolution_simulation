@@ -114,11 +114,13 @@ class Blob():
     def time_born(self, paused_time: float, speed: float = 1.):
         return (self._time_born - paused_time) * speed
         
-    def closest_candy(self, candies) -> Candy:
+    def closest_candy(self, candies, visible: Callable[[Candy], bool]) -> Candy:
         min_pair = (None, 0)
         for candy in candies:
             dist = self.distance_to(candy)
-            if min_pair[0] == None or dist < min_pair[1]:
+            if (min_pair[0] == None or \
+               dist < min_pair[1]) and \
+               visible(candy):
                 min_pair = (candy, dist)
         return min_pair[0]
     

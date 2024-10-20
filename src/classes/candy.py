@@ -45,7 +45,7 @@ class Candy():
                    Candy.MIN_SIZE)
         radius = utils.radius(size)
         
-        position = Vector2(rng.uniform(bounds.left + radius, bounds.right - radius),
+        position = Vector2(rng.uniform(bounds.left, bounds.right),
                     rng.uniform(bounds.top + radius, bounds.bottom - radius))
         
         return Candy(size=size,

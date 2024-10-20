@@ -32,7 +32,7 @@ class Game():
                                          speed = 5.0),
                 
                 # Mean candy size
-                mean_candy_sizes: tup[float, float] = (5.0, 5.0),
+                mean_candy_sizes: tuple[float, float] = (5.0, 5.0),
                 
                 # Mutation standard deviation
                 mutation_sdvs: MutationSdvs = MutationSdvs(size_sdv = 5,
@@ -41,7 +41,7 @@ class Game():
                                              speed_sdv = 2),
                 
                 # Candy size standard deviation
-                candy_size_sdvs: tup[float, float] = (2.0, 2.0),
+                candy_size_sdvs: tuple[float, float] = (2.0, 2.0),
                 
                 # Energy a candy provides when \
                 # eaten per unit size.
@@ -52,7 +52,7 @@ class Game():
                 
                 # Starting number of candy
                 n_candies: tuple[int, int] = (20, 20),
-                candy_spawn_rates: tup[float, float] = (10, 10),
+                candy_spawn_rates: tuple[float, float] = (10, 10),
                 separation_gap: float = 0,
                 sim_speed: float = 1,
                 ):
@@ -88,8 +88,21 @@ class Game():
         
     
     def _interpolate(self, *, x: float, range: tuple[float, float]):
-        slope = (range[1] - range[0]) / self.SCREEN_WIDTH
-        return slope * x + range[0]
+        low, high = range
+        x = x / self.SCREEN_WIDTH
+        
+        # Steepness.
+        # k=1 is a line
+        k = 2
+        
+        rawval = 1 - (1 / (1 + (1 / x - 1)**(-k)))
+        
+        scaled = (high - low) * rawval + low
+        
+        return scaled
+        
+        # slope = (range[1] - range[0]) / self.SCREEN_WIDTH
+        # return slope * x + range[0]
     
     def _interval_width(self):
         return self.SCREEN_WIDTH / self.N_INTERVALS
@@ -120,29 +133,36 @@ class Game():
         return blobs
     
    
-    def _generate_candies(self, n: int, region: Rect) -> list[Candy]:
+    def _generate_candies(self, n: int,
+                          mean_size: float,
+                          sdv: float,
+                          region: Rect) -> list[Candy]:
         candies = []
         for i in range(n):
-            candy = Candy.random(mean_size=self._mean_candy_sizes,
-                                     sdv=self._candy_size_sdv,
+            candy = Candy.random(mean_size=mean_size,
+                                     sdv=sdv,
                                      rng=self._rng,
                                      bounds=region)
             candy.position = self._bound_position(candy.position, candy.radius())
-            candies.add(candy)
+            candies.append(candy)
         return candies
     
     def _gen_initial_candies(self, n):
         candies = set()
         candies.update(self._generate_candies(self._n_candies[0],
-                                              Rect(left=0,
-                                                   top=0,
-                                                   width=(self.SCREEN_WIDTH - self.SEPARATOR_WIDTH) / 2,
-                                                   height=self.SCREEN_HEIGHT)))
+                                              self._mean_candy_sizes[0],
+                                              self._candy_size_sdvs[0],
+                                              Rect(0,
+                                                   0,
+                                                   (self.SCREEN_WIDTH - self.SEPARATOR_WIDTH) / 2,
+                                                   self.SCREEN_HEIGHT)))
         candies.update(self._generate_candies(self._n_candies[1],
-                                              Rect(left=(self.SCREEN_WIDTH + self.SEPARATOR_WIDTH)/2,
-                                                   top=0,
-                                                   width=(self.SCREEN_WIDTH - self.SEPARATOR_WIDTH) / 2,
-                                                   height=self.SCREEN_HEIGHT)))
+                                              self._mean_candy_sizes[1],
+                                              self._candy_size_sdvs[1],
+                                              Rect((self.SCREEN_WIDTH + self.SEPARATOR_WIDTH)/2,
+                                                   0,
+                                                   (self.SCREEN_WIDTH - self.SEPARATOR_WIDTH) / 2,
+                                                   self.SCREEN_HEIGHT)))
         return candies
     
     def _reset_candies(self):
@@ -207,14 +227,26 @@ class Game():
         top, bottom = self._separators()
         
         for rect in [top, bottom]:
-            _, newpos = self._rect_intersect(pos, radius, top)
+            _, newpos = self._rect_intersect(pos, radius, rect)
             if newpos != None:
                 pos = newpos
                 
         return pos
 
     def _move_blob(self, blob, timediff):
-        candy = blob.closest_candy(self._candies)
+        def visible(candy: Candy) -> bool:
+            # for sep in self._separators():
+            #     if sep.clipline((blob.position.x, blob.position.y),
+            #                     (candy.position.x, candy.position.y)) != ():
+            #         # print(sep.clipline((blob.position.x, blob.position.y),
+            #         #             (candy.position.x, candy.position.y)), candy)
+            #         return False
+            return True
+        
+        candy = blob.closest_candy(self._candies, visible)
+        if candy == None:
+            return
+        
         dist = blob.distance_to(candy)
         blob.acc = Blob.ACC_MULTIPLIER * Vector2(candy.position.x - blob.position.x,
                             candy.position.y - blob.position.y) / dist
@@ -282,13 +314,28 @@ class Game():
         return (dead, offspring)
     
     def _spawn_candy(self, timediff):
-        
-        for _ in range(self._rng.poisson(self._candy_spawn_rate*timediff)):
-            candy = Candy.random(rng=self._rng,
-                                 sdv=self._candy_size_sdv,
-                                 mean_size=self._mean_candy_sizes)
-            candy.position = self._bound_position(candy.position, candy.radius())
-            self._candies.add(candy)
+        for interval in self._intervals:
+            x = interval.centerx
+            
+            area_ratio = (interval.width * interval.height) / \
+                         (self.SCREEN_WIDTH * self.SCREEN_HEIGHT)
+            int_spawn_rate = self._interpolate(x=x,
+                                               range=self._candy_spawn_rates)
+            _lambda = int_spawn_rate * timediff * area_ratio
+            
+            sdv = self._interpolate(x=x,
+                                    range=self._candy_size_sdvs)
+            
+            mean_size = self._interpolate(x=x,
+                                    range=self._mean_candy_sizes)
+
+            for _ in range(self._rng.poisson(_lambda)):
+                candy = Candy.random(rng=self._rng,
+                                    sdv=sdv,
+                                    mean_size=mean_size,
+                                    bounds=interval)
+                candy.position = self._bound_position(candy.position, candy.radius())
+                self._candies.add(candy)
         
     def on_loop(self):
         timediff = self._sim_speed * self._loop_clock.tick() / 1000
