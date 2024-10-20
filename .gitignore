@@ -1,2 +1,5 @@
 evolution_project_1/
+build/
+dist/
 *.pyc
+main.spec
