@@ -78,11 +78,14 @@ class Game():
         self._candy_spawn_rates = candy_spawn_rates
         self._n_candies = n_candies
         
+        self._intervals: list[Rect] = self._gen_intervals()
+        
         self._candies = self._gen_initial_candies(n_candies)
         self._blobs = self._gen_initial_blobs(n_blobs)
         
         self._paused_clock = Clock()
         self._paused_time = 0
+        
     
     def _interpolate(self, *, x: float, range: tuple[float, float]):
         slope = (range[1] - range[0]) / self.SCREEN_WIDTH
@@ -91,13 +94,17 @@ class Game():
     def _interval_width(self):
         return self.SCREEN_WIDTH / self.N_INTERVALS
     
-    def _get_interval(self, i: int) -> Rect:
+    def _gen_interval(self, i: int) -> Rect:
         srect = Rect(self._interval_width() * i,
                      0, 
                      self._interval_width(),
                      self.SCREEN_HEIGHT)
         
         return srect
+    
+    def _gen_intervals(self) -> list[Rect]:
+        return [self._gen_interval(i) for i in range(self.N_INTERVALS)]
+            
     
     def _radius(self, size: float) -> float:
         return math.sqrt(size * SIZE_SCALE / (2 * math.pi))
