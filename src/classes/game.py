@@ -13,6 +13,8 @@ class Game():
     SCREEN_WIDTH=1920
     SCREEN_HEIGHT=1080
     SEPARATOR_WIDTH = 50
+    
+    N_INTERVALS = 40
 
     BLOB_COLOR = (100, 100, 255)
     CANDY_COLOR = (146, 77, 155)
@@ -85,6 +87,17 @@ class Game():
     def _interpolate(self, *, x: float, range: tuple[float, float]):
         slope = (range[1] - range[0]) / self.SCREEN_WIDTH
         return slope * x + range[0]
+    
+    def _interval_width(self):
+        return self.SCREEN_WIDTH / self.N_INTERVALS
+    
+    def _get_interval(self, i: int) -> Rect:
+        srect = Rect(self._interval_width() * i,
+                     0, 
+                     self._interval_width(),
+                     self.SCREEN_HEIGHT)
+        
+        return srect
     
     def _radius(self, size: float) -> float:
         return math.sqrt(size * SIZE_SCALE / (2 * math.pi))
@@ -262,6 +275,7 @@ class Game():
         return (dead, offspring)
     
     def _spawn_candy(self, timediff):
+        
         for _ in range(self._rng.poisson(self._candy_spawn_rate*timediff)):
             candy = Candy.random(rng=self._rng,
                                  sdv=self._candy_size_sdv,
