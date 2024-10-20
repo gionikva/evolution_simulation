@@ -28,7 +28,7 @@ class Game():
                                          speed = 5.0),
                 
                 # Mean candy size
-                mean_candy_size: float = 5.0,
+                mean_candy_sizes: tup[float, float] = (5.0, 5.0),
                 
                 # Mutation standard deviation
                 mutation_sdvs: MutationSdvs = MutationSdvs(size_sdv = 5,
@@ -37,7 +37,7 @@ class Game():
                                              speed_sdv = 2),
                 
                 # Candy size standard deviation
-                candy_size_sdv: float = 2.0,
+                candy_size_sdvs: tup[float, float] = (2.0, 2.0),
                 
                 # Energy a candy provides when \
                 # eaten per unit size.
@@ -47,8 +47,8 @@ class Game():
                 n_blobs: int = 10,
                 
                 # Starting number of candy
-                n_candies: int = 20,
-                candy_spawn_rate: float = 10,
+                n_candies: tuple[int, int] = (20, 20),
+                candy_spawn_rates: tup[float, float] = (10, 10),
                 separation_gap: float = 0,
                 sim_speed: float = 1,
                 ):
@@ -56,7 +56,7 @@ class Game():
         self._seed = seed
         self._mean_traits = BlobTraits(size=mean_traits.size,
                                       speed=mean_traits.speed)
-        self._mean_candy_size = mean_candy_size
+        self._mean_candy_sizes = mean_candy_sizes
         self._mutation_sdvs = MutationSdvs(size_sdv=mutation_sdvs.size,
                                           speed_sdv=mutation_sdvs.speed)
         self._initial_sdvs = initial_sdvs
@@ -98,7 +98,7 @@ class Game():
         candies = set()
         for i in range(n):
             
-            candy = Candy.random(mean_size=self._mean_candy_size,
+            candy = Candy.random(mean_size=self._mean_candy_sizes,
                                      sdv=self._candy_size_sdv,
                                      rng=self._rng)
             candy.position = self._bound_position(candy.position, candy.radius())
@@ -108,7 +108,7 @@ class Game():
     def _reset_candies(self):
         self._candies.clear()
         for i in range(self._n_candies):
-            self._candies.add(Candy.random(mean_size=self._mean_candy_size,
+            self._candies.add(Candy.random(mean_size=self._mean_candy_sizes,
                                           sdv=self._candy_size_sdv,
                                           rng=self._rng))
     
@@ -245,7 +245,7 @@ class Game():
         for _ in range(self._rng.poisson(self._candy_spawn_rate*timediff)):
             candy = Candy.random(rng=self._rng,
                                  sdv=self._candy_size_sdv,
-                                 mean_size=self._mean_candy_size)
+                                 mean_size=self._mean_candy_sizes)
             candy.position = self._bound_position(candy.position, candy.radius())
             self._candies.add(candy)
         
