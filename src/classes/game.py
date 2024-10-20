@@ -56,11 +56,9 @@ class Game():
         self._seed = seed
         self._mean_traits = BlobTraits(size=mean_traits.size,
                                       speed=mean_traits.speed)
-        self._mean_candy_sizes = mean_candy_sizes
         self._mutation_sdvs = MutationSdvs(size_sdv=mutation_sdvs.size,
                                           speed_sdv=mutation_sdvs.speed)
         self._initial_sdvs = initial_sdvs
-        self._candy_size_sdv = candy_size_sdv
         self._candy_energy_d = candy_energy_density
         
         self._rng = random.default_rng(seed=seed)
@@ -68,20 +66,27 @@ class Game():
         
         self._gap = separation_gap
         self._sim_speed = sim_speed
-        self._candy_spawn_rate = candy_spawn_rate
+        
+                
+
+        self._mean_candy_sizes = mean_candy_sizes
+        self._candy_size_sdvs = candy_size_sdvs
+        self._candy_spawn_rates = candy_spawn_rates
         self._n_candies = n_candies
+        
         self._candies = self._gen_initial_candies(n_candies)
         self._blobs = self._gen_initial_blobs(n_blobs)
         
         self._paused_clock = Clock()
         self._paused_time = 0
-        
-        
+    
+    def _interpolate(self, *, x: float, range: tuple[float, float]):
+        slope = (range[1] - range[0]) / self.SCREEN_WIDTH
+        return slope * x + range[0]
+    
     def _radius(self, size: float) -> float:
         return math.sqrt(size * SIZE_SCALE / (2 * math.pi))
         
-    
-    
     def _gen_initial_blobs(self, n):
         blobs = set()
         for i in range(n):
