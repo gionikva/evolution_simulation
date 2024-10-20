@@ -1,5 +1,6 @@
 import pygame
 from pygame.time import Clock
+from pygame.font import Font
 from pygame import Rect
 from classes.blob import *
 from classes.candy import Candy
@@ -12,10 +13,10 @@ from numpy import random
 class Game():
     SIM_WIDTH=SIM_WIDTH
     SIM_HEIGHT=SIM_HEIGHT
-    STATBAR_HEIGHT = 100
-    SEPARATOR_WIDTH = 50
+    STATBAR_HEIGHT = 180
+    SEPARATOR_WIDTH = 80
     
-    N_INTERVALS = 40
+    N_INTERVALS = 100
 
     BLOB_COLOR = (100, 100, 255)
     CANDY_COLOR = (146, 77, 155)
@@ -63,6 +64,8 @@ class Game():
                 separation_gap: float = 0,
                 sim_speed: float = 1,
                 ):
+
+        pygame.font.init()
 
         self._seed = seed
         self._mean_traits = BlobTraits(size=mean_traits.size,
@@ -263,6 +266,7 @@ class Game():
         
         candy = blob.closest_candy(self._candies, visible)
         if candy == None:
+            print("INVISIBLE")
             return
         
         dist = blob.distance_to(candy)
@@ -270,6 +274,9 @@ class Game():
                             candy.position.y - blob.position.y) / dist
         # self._acc -= self._vel * self.FRICTION 
         blob.vel += blob.acc * timediff
+        
+        
+        # fvel = blob.vel + 0.3 * blob.acc
         if blob.vel.magnitude() > blob.traits.speed:
             blob.vel = blob.vel * blob.traits.speed / blob.vel.magnitude()
         # self._vel = min(self._vel, self.traits.speed)
@@ -291,9 +298,13 @@ class Game():
 
     def _offspring_position(self, parent: Blob, area: float = 60):
         angle = self._rng.uniform(0, 2*math.pi)
+        
         r = math.sqrt(self._rng.uniform(0, area * SIZE_SCALE) / (2 * math.pi))
-        return Vector2(x=parent.position.x + r * math.cos(angle),
-                       y=parent.position.y + r * math.sin(angle))
+
+        center = self._bound_position(parent.position, utils.radius(area))
+        
+        return Vector2(x=center.x + r * math.cos(angle),
+                       y=center.y + r * math.sin(angle))
 
     def _reproduce(self, blob) -> Sequence[Blob]:
         f = lambda : self._offspring_position(parent=blob, area=60)
@@ -311,7 +322,7 @@ class Game():
     def _eat(self, blob: Blob) -> Sequence[Candy]:
         eaten_candies = []
         for candy in self._candies:
-            if blob.distance_to(candy) + candy.radius() - blob.radius() <= 0.001:
+            if blob.distance_to(candy) + candy.radius() - blob.radius() <= 0.01:
                 eaten_candies.append(candy)
                 blob.energy = min(blob.max_energy,
                                   blob.energy + self._candy_energy_d * candy.size)
@@ -358,13 +369,47 @@ class Game():
                                     sdv=sdv,
                                     mean_size=mean_size,
                                     bounds=interval)
-                candy.position = self._bound_position(candy.position, candy.radius())
-                
-                self._candies.add(candy)
-                
-                if len(self._candies) > self.CANDY_LIMIT:
-                    self._candies.pop()
+                if candy != None:
+                    candy.position = self._bound_position(candy.position, candy.radius())
+                    
+                    self._candies.add(candy)
+                    
+                    if len(self._candies) > self.CANDY_LIMIT:
+                        self._candies.pop()
+                    
+    def _calculate_mean_traits(self) -> tuple[BlobTraits, BlobTraits]:
+        leftsums = BlobTraits(size=0., speed=0.)
+        rightsums = BlobTraits(size=0., speed=0.)
         
+        nleft = 0
+        nright = 0
+        
+        for blob in self._blobs:
+            if blob.position.x < SIM_WIDTH / 2:
+                leftsums.size += blob.traits.size
+                leftsums.speed += blob.traits.speed
+                nleft += 1
+            else:
+                rightsums.size += blob.traits.size
+                rightsums.speed += blob.traits.speed
+                nright += 1
+        
+        if nleft != 0:
+            lmean = BlobTraits(size = leftsums.size / nleft,
+                                speed = leftsums.speed / nleft)
+        else:
+            lmean = BlobTraits(size = None,
+                                speed = None)
+        
+        if nright != 0:
+            rmean = BlobTraits(size = rightsums.size / nright,
+                                speed = rightsums.speed / nright)
+        else:
+            rmean = BlobTraits(size = None,
+                                speed = None)
+        return (lmean,
+                rmean)
+                
     def on_loop(self):
         timediff = self._sim_speed * self._loop_clock.tick() / 1000
         
@@ -425,12 +470,58 @@ class Game():
         pygame.draw.rect(self.screen, 0x775002, top)
         pygame.draw.rect(self.screen, 0x775002, bottom)
     
+    def _draw_trait_values(self, *,
+                           position: tuple[int, int], 
+                           mean_size: float,
+                           mean_speed: float,
+                           alignleft: bool):
+        
+        titlefont = pygame.font.SysFont('Noto Sans', 30, True)
+        font = pygame.font.SysFont('Noto Sans', 30, False)
+
+        text1 = titlefont.render('Mean Phenotype Values', True, (0, 0, 0))
+        text2 = font.render(f'Mean size: {mean_size if mean_size != None else 'N/A'}', True, (0, 0, 0))
+        text3 = font.render(f'Mean speed: {mean_speed if mean_speed != None else 'N/A'}', True, (0, 0, 0))
+
+        text2.get_width()
+        
+        margin = 50
+
+        if alignleft:
+            self.screen.blit(text1, position)
+            self.screen.blit(text2, (position[0], position[1] + margin))
+            self.screen.blit(text3, (position[0], position[1] + margin * 2))
+        else:
+            self.screen.blit(text1, (position[0] - text1.get_width(), position[1]))
+            self.screen.blit(text2, (position[0] - text2.get_width(), position[1] + margin))
+            self.screen.blit(text3, (position[0] - text3.get_width(), position[1] + margin * 2))
+            
+
+    
+    def _draw_statbar(self):
+        pygame.draw.rect(self.screen, (0, 0, 0), Rect(0, SIM_HEIGHT-1, SIM_WIDTH, 5))
+        pygame.draw.line(self.screen, (0, 0, 0), (SIM_WIDTH/2, SIM_HEIGHT),
+                         (SIM_WIDTH/2, SIM_HEIGHT + self.STATBAR_HEIGHT),
+                         5)
+        
+        lmean, rmean = self._calculate_mean_traits()
+        
+        self._draw_trait_values(position=(20, SIM_HEIGHT + 20),
+                                mean_size=lmean.size,
+                                mean_speed=lmean.speed,
+                                alignleft=True)
+        self._draw_trait_values(position=(SIM_WIDTH / 2 + 20, SIM_HEIGHT + 20),
+                                mean_size=rmean.size,
+                                mean_speed=rmean.speed,
+                                alignleft=True)
+    
     # TODO: Fix bug of candies spawning inside the separators
     
     def _draw(self):
         self._draw_candies()
         self._draw_blobs()
         self._draw_separators()
+        self._draw_statbar()
         
     def _separators(self) -> tuple[Rect, Rect]:
         width = self.SEPARATOR_WIDTH
@@ -481,7 +572,7 @@ class Game():
 
             
             self.screen.fill((255, 255, 255))
-            pygame.draw.rect(self.screen, (0, 0, 0), Rect(0, SIM_HEIGHT-1, SIM_WIDTH, 5))
+            
             self._draw()
 
             pygame.display.flip()

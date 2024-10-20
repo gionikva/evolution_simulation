@@ -43,7 +43,11 @@ class Candy():
                                  mean=mean_size,
                                  std_dev=sdv),
                    Candy.MIN_SIZE)
+        
         radius = utils.radius(size)
+        
+        if bounds.bottom - bounds.top < radius * 2:
+            return None
         
         position = Vector2(rng.uniform(bounds.left, bounds.right),
                     rng.uniform(bounds.top + radius, bounds.bottom - radius))
