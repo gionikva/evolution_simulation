@@ -17,6 +17,10 @@ class MutationSdvs():
                  speed_sdv: float = 2.0):
         self.size = size_sdv
         self.speed = speed_sdv
+        
+    def from_dict(obj: dict) -> Self:
+        return MutationSdvs(size_sdv=obj.get('size_sdv'),
+                        speed_sdv=obj.get('speed_sdv'))
 
 class BlobTraits():
     def __init__(self, *, 
@@ -24,6 +28,10 @@ class BlobTraits():
                  speed: float):
         self.size = size
         self.speed = speed
+    
+    def from_dict(obj: dict) -> Self:
+        return BlobTraits(size=obj.get('size'),
+                          speed=obj.get('speed'))
 
 # Represents a single individual
 # Will be rendered as a moving circle
@@ -38,7 +46,7 @@ class Blob():
     ENERGY_SIZE_R = 10000.0
     
     # Defines the energy_expenditure/size ratio.
-    ENERGY_EXP_SIZE_R = 100
+    ENERGY_EXP_SIZE_R = 3
     # The ratio of the above two values will equal \
     # the time a blob will survive moving at full speed \
     # given that it started with full energy.
@@ -46,7 +54,7 @@ class Blob():
     
     # Determines how much energy is spent when \
     # a blob moves at a particular velocity.
-    VEL_ENERGY_MULT = 0.0002
+    VEL_ENERGY_MULT = 0.001
     
     ACC_MULTIPLIER = 500.
     

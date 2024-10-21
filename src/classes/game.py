@@ -1,4 +1,6 @@
 import pygame
+import json
+from typing import Self
 from pygame.time import Clock
 from pygame.font import Font
 from pygame import Rect
@@ -35,7 +37,7 @@ class Game():
                         
                 # Mean trait values for the starting population
                 mean_traits: BlobTraits = BlobTraits(size = 20.0,
-                                         speed = 5.0),
+                                         speed = 300.0),
                 
                 # Mean candy size
                 mean_candy_sizes: tuple[float, float] = (5.0, 5.0),
@@ -49,6 +51,10 @@ class Game():
                 # Candy size standard deviation
                 candy_size_sdvs: tuple[float, float] = (2.0, 2.0),
                 
+                # Starting number of candy
+                n_candies: tuple[int, int] = (20, 20),
+                candy_spawn_rates: tuple[float, float] = (10, 10),
+                
                 # Energy a candy provides when \
                 # eaten per unit size.
                 candy_energy_density: float = 2000,
@@ -58,10 +64,8 @@ class Game():
                 # Starting number of blobs
                 n_blobs: int = 10,
                 
-                # Starting number of candy
-                n_candies: tuple[int, int] = (20, 20),
-                candy_spawn_rates: tuple[float, float] = (10, 10),
-                separation_gap: float = 0,
+                
+                separation_gap: float = 1,
                 sim_speed: float = 1,
                 ):
 
@@ -97,6 +101,23 @@ class Game():
         self._paused_clock = Clock()
         self._paused_time = 0
         
+    def from_config(filepath: str) -> Self:
+        config: dict = json.load(open(filepath))
+        return Game(
+            seed=config.get('seed'),
+            mean_traits=BlobTraits.from_dict(config.get('mean_traits') or {'size': 20., 'speed': 300.}),
+            mean_candy_sizes=tuple(config.get('mean_candy_sizes') or [5., 5.]),
+            mutation_sdvs=MutationSdvs.from_dict(config.get('mutation_sdvs') or {'size_sdv': 5., 'speed_sdv': 2.}),
+            initial_sdvs=MutationSdvs.from_dict(config.get('initial_sdvs') or {'size_sdv': 5., 'speed_sdv': 2.}),
+            candy_size_sdvs=tuple(config.get('candy_size_sdvs') or [2., 2.]),
+            n_candies=tuple(config.get('n_candies') or [20, 20]),
+            candy_spawn_rates=tuple(config.get('candy_spawn_rates') or [20, 20]),
+            candy_energy_density=config.get('candy_energy_density') if 'candy_energy_density' in config else 2000.,
+            cutoff_sharpness=config.get('cutoff_sharpness') if 'cutoff_sharpness' in config else 3.,
+            n_blobs=config.get('n_blobs') if 'n_blobs' in config else 10,
+            separation_gap=config.get('separation_gap') if 'separation_gap' in config else 1.,
+            sim_speed=config.get('sim_speed') if 'sim_speed' in config else 1.
+        )
     
     def _interpolate(self, *, x: float, range: tuple[float, float]):
         low, high = range
@@ -270,18 +291,36 @@ class Game():
             return
         
         dist = blob.distance_to(candy)
-        blob.acc = Blob.ACC_MULTIPLIER * Vector2(candy.position.x - blob.position.x,
-                            candy.position.y - blob.position.y) / dist
+        displacement = Vector2(candy.position.x - blob.position.x,
+                            candy.position.y - blob.position.y)
+        
+        
+        # New (basic) movement logic
+        # d_norm = displacement / displacement.magnitude()
+        
+        # blob.vel = d_norm * blob.traits.speed
+        
+        # movement = blob.vel * timediff
+        
+        # Old movement logic
+        
+        blob.acc = Blob.ACC_MULTIPLIER * displacement / dist
         # self._acc -= self._vel * self.FRICTION 
         blob.vel += blob.acc * timediff
         
         
-        # fvel = blob.vel + 0.3 * blob.acc
+       
+        
         if blob.vel.magnitude() > blob.traits.speed:
             blob.vel = blob.vel * blob.traits.speed / blob.vel.magnitude()
         # self._vel = min(self._vel, self.traits.speed)
         
-        movement = (blob.vel + 0.3 * blob.acc) * timediff
+        fvel = blob.vel + 0.2 * blob.acc
+        
+        if fvel.magnitude() > blob.traits.speed:
+            fvel = fvel * blob.traits.speed / fvel.magnitude()
+        
+        movement = fvel * timediff
                 
 
         oldpos = blob.position
@@ -289,9 +328,13 @@ class Game():
         blob.position = self._bound_position(blob.position + movement, blob.radius())
 
         movement = blob.position - oldpos
+        
+        # slope = movement.y / movement.x
+        
+        
             
         blob.energy -= (Blob.ENERGY_EXP_SIZE_R * blob.traits.size) * movement.magnitude() * \
-            Blob.VEL_ENERGY_MULT * blob.vel.magnitude()
+            (1 + Blob.VEL_ENERGY_MULT * blob.vel.magnitude())
 
     def _passive_energy_loss(self, blob, timediff):
         blob.energy -= timediff * blob.PASSIVE_ENERGY_LOSS * blob.traits.size
@@ -322,7 +365,7 @@ class Game():
     def _eat(self, blob: Blob) -> Sequence[Candy]:
         eaten_candies = []
         for candy in self._candies:
-            if blob.distance_to(candy) + candy.radius() - blob.radius() <= 0.01:
+            if blob.distance_to(candy) + candy.radius() - blob.radius() <= 2:
                 eaten_candies.append(candy)
                 blob.energy = min(blob.max_energy,
                                   blob.energy + self._candy_energy_d * candy.size)
@@ -417,7 +460,7 @@ class Game():
         newblobs = []
         
         for blob in self._blobs:
-            self._move_blob(blob, timediff)
+            eaten_candies =  self._move_blob(blob, timediff)
             self._passive_energy_loss(blob, timediff)
             blob.age_by(timediff)
             dead, offspring = self._lifecycle_blob(blob, timediff)
@@ -480,8 +523,8 @@ class Game():
         font = pygame.font.SysFont('Noto Sans', 30, False)
 
         text1 = titlefont.render('Mean Phenotype Values', True, (0, 0, 0))
-        text2 = font.render(f'Mean size: {mean_size if mean_size != None else 'N/A'}', True, (0, 0, 0))
-        text3 = font.render(f'Mean speed: {mean_speed if mean_speed != None else 'N/A'}', True, (0, 0, 0))
+        text2 = font.render(f'Mean size: {mean_size if mean_size != None else "N/A"}', True, (0, 0, 0))
+        text3 = font.render(f'Mean speed: {mean_speed if mean_speed != None else "N/A"}', True, (0, 0, 0))
 
         text2.get_width()
         
