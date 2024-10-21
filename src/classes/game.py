@@ -1,6 +1,6 @@
-import pygame
 import json
-from typing import Self
+import pygame
+from typing import Self, IO
 from pygame.time import Clock
 from pygame.font import Font
 from pygame import Rect
@@ -84,9 +84,7 @@ class Game():
         
         self._gap = separation_gap
         self._sim_speed = sim_speed
-        
-                
-
+    
         self._mean_candy_sizes = mean_candy_sizes
         self._candy_size_sdvs = candy_size_sdvs
         self._candy_spawn_rates = candy_spawn_rates
@@ -101,8 +99,8 @@ class Game():
         self._paused_clock = Clock()
         self._paused_time = 0
         
-    def from_config(filepath: str) -> Self:
-        config: dict = json.load(open(filepath))
+    def from_config(file: IO) -> Self:
+        config: dict = json.load(file)
         return Game(
             seed=config.get('seed'),
             mean_traits=BlobTraits.from_dict(config.get('mean_traits') or {'size': 20., 'speed': 300.}),
@@ -287,7 +285,7 @@ class Game():
         
         candy = blob.closest_candy(self._candies, visible)
         if candy == None:
-            print("INVISIBLE")
+            # print("INVISIBLE")
             return
         
         dist = blob.distance_to(candy)
@@ -377,14 +375,14 @@ class Game():
         offspring = []      
         
         if blob.energy <= 0:
-            print("energyranout")
+            # print("energyranout")
             dead = True
         
         elif blob.age >= Blob.LIFESPAN:
             if blob.energy / blob.max_energy >= 0.5:
                 offspring = self._reproduce(blob)
                 
-            print("lifespanexceeded:", blob.energy / blob.max_energy)
+            # print("lifespanexceeded:", blob.energy / blob.max_energy)
             dead = True
         
         return (dead, offspring)
@@ -611,7 +609,7 @@ class Game():
                         if paused:
                             self._paused_clock.tick()
                         else:
-                            print("ticked,", self._loop_clock.tick())
+                            self._loop_clock.tick()
 
             
             self.screen.fill((255, 255, 255))
