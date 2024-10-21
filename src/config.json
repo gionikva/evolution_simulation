@@ -5,11 +5,11 @@
         "speed": 200
     },
     "initial_sdvs": {
-        "size_sdv": 0.0,
+        "size_sdv": 5.0,
         "speed_sdv": 0.2
     },
     "mutation_sdvs": {
-        "size_sdv": 0.0,
+        "size_sdv": 3.0,
         "speed_sdv": 25
     },
     "mean_candy_sizes": [10, 10],
