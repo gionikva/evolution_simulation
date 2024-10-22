@@ -3,7 +3,9 @@ import sys
 import os.path
 
 def main():
-   game = Game.from_config(open("./config.json"))
+   
+   CWD = os.path.abspath(os.path.dirname(sys.executable))
+   game = Game.from_config(open(os.path.join(CWD, "config.json")))
    # game = Game(
    #             seed = 10,
    #             mean_traits=BlobTraits(size=30,

@@ -1,20 +1,20 @@
 {
-    "seed": 10,
+    "seed": 20,
     "mean_traits": {
         "size": 30,
         "speed": 200
     },
     "initial_sdvs": {
         "size_sdv": 5.0,
-        "speed_sdv": 0.2
+        "speed_sdv": 0.5
     },
     "mutation_sdvs": {
-        "size_sdv": 3.0,
+        "size_sdv": 1.5,
         "speed_sdv": 25
     },
     "mean_candy_sizes": [10, 10],
     "candy_size_sdvs": [1, 1],
-    "candy_spawn_rates": [15, 90],
+    "candy_spawn_rates": [20, 90],
     "cutoff_sharpness": 10,
     "n_candies": [60, 200],
     "n_blobs": 60,

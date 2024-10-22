@@ -101,6 +101,7 @@ class Game():
         
     def from_config(file: IO) -> Self:
         config: dict = json.load(file)
+        print(config)
         return Game(
             seed=config.get('seed'),
             mean_traits=BlobTraits.from_dict(config.get('mean_traits') or {'size': 20., 'speed': 300.}),
