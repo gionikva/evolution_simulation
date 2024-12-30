@@ -168,8 +168,9 @@ class Game():
         for i in range(n):
             blob = Blob.random(mean_traits=self._mean_traits,
                                   sdvs=self._initial_sdvs,
+                                  separators=self._separators(),
                                   rng=self._rng)
-            blob.position = self._bound_position(blob.position, blob.radius())
+            blob.position = utils.bound_position(blob.position, blob.radius(), self._separators())
             blobs.add(blob)
         return blobs
     
@@ -184,7 +185,7 @@ class Game():
                                      sdv=sdv,
                                      rng=self._rng,
                                      bounds=region)
-            candy.position = self._bound_position(candy.position, candy.radius())
+            candy.position = utils.bound_position(candy.position, candy.radius(), self._separators())
             candies.append(candy)
         return candies
     
@@ -223,117 +224,10 @@ class Game():
     
     def _time(self):
         return self._sim_speed * self._abs_time()
-    
-    
-    def _rect_intersect(self, position: Vector2, radius: float, rect: Rect) -> tuple[bool, Vector2]:
-        cleft, cright = (position.x - radius, position.x + radius)
-        ctop, cbottom = (position.y - radius, position.y + radius)
-        
-       
-            
-        # crect = Rect(cleft, ctop, radius*2, radius*2)
-        
-        if rect.top <= position.y <= rect.bottom:
-            if cright > rect.left and cleft < rect.left:
-                return (True, Vector2(rect.left - radius, position.y))
-            
-            if cleft < rect.right and cright > rect.right:
-                return (True, Vector2(rect.right + radius, position.y))
-    
-        if rect.left <= position.x <= rect.right:
-            if ctop < rect.bottom and cbottom > rect.bottom:
-                return (True, Vector2(position.x, rect.bottom + radius))
-            
-            if cbottom > rect.top and ctop < rect.top:
-                return (True, Vector2(position.x, rect.top - radius))
-            
-        for corner in [rect.bottomleft, rect.bottomright, rect.topleft, rect.topright]:
-            dist = math.sqrt((corner[0] - position.x)**2 + (corner[1]-position.y)**2)
-            if dist < radius:
-                s = Vector2(corner[0] - position.x, corner[1] - position.y)
-                r = (s / s.magnitude()) * radius
-                m = s - r
-                return (True, position + m)
-                    
-        return (False, None)
-    
 
-    def _bound_position(self, position: Vector2, radius: float):
-        
-        pos: Vector2 = utils.bound_position(position, radius)[0]
-        
-        # Check if blob intersects with separator
-      
-        
-        top, bottom = self._separators()
-        
-        for rect in [top, bottom]:
-            _, newpos = self._rect_intersect(pos, radius, rect)
-            if newpos != None:
-                pos = newpos
-                
-        return pos
 
     def _move_blob(self, blob, timediff):
-        def visible(candy: Candy) -> bool:
-            for sep in self._separators():
-                if sep.clipline((blob.position.x, blob.position.y),
-                                (candy.position.x, candy.position.y)) != ():
-                    # print(sep.clipline((blob.position.x, blob.position.y),
-                    #             (candy.position.x, candy.position.y)), candy)
-                    return False
-            return True
-        
-        candy = blob.closest_candy(self._candies, visible)
-        if candy == None:
-            # print("INVISIBLE")
-            return
-        
-        dist = blob.distance_to(candy)
-        displacement = Vector2(candy.position.x - blob.position.x,
-                            candy.position.y - blob.position.y)
-        
-        
-        # New (basic) movement logic
-        # d_norm = displacement / displacement.magnitude()
-        
-        # blob.vel = d_norm * blob.traits.speed
-        
-        # movement = blob.vel * timediff
-        
-        # Old movement logic
-        
-        blob.acc = Blob.ACC_MULTIPLIER * displacement / dist
-        # self._acc -= self._vel * self.FRICTION 
-        blob.vel += blob.acc * timediff
-        
-        
-       
-        
-        if blob.vel.magnitude() > blob.traits.speed:
-            blob.vel = blob.vel * blob.traits.speed / blob.vel.magnitude()
-        # self._vel = min(self._vel, self.traits.speed)
-        
-        fvel = blob.vel + 0.2 * blob.acc
-        
-        if fvel.magnitude() > blob.traits.speed:
-            fvel = fvel * blob.traits.speed / fvel.magnitude()
-        
-        movement = fvel * timediff
-                
-
-        oldpos = blob.position
-        
-        blob.position = self._bound_position(blob.position + movement, blob.radius())
-
-        movement = blob.position - oldpos
-        
-        # slope = movement.y / movement.x
-        
-        
-            
-        blob.energy -= (Blob.ENERGY_EXP_SIZE_R * blob.traits.size) * movement.magnitude() * \
-            (1 + Blob.VEL_ENERGY_MULT * blob.vel.magnitude())
+        blob._move(self._candies, self._blobs, self._separators(), timediff)
 
     def _passive_energy_loss(self, blob, timediff):
         blob.energy -= timediff * blob.PASSIVE_ENERGY_LOSS * blob.traits.size
@@ -343,7 +237,7 @@ class Game():
         
         r = math.sqrt(self._rng.uniform(0, area * SIZE_SCALE) / (2 * math.pi))
 
-        center = self._bound_position(parent.position, utils.radius(area))
+        center = utils.bound_position(parent.position, utils.radius(area), self._separators())
         
         return Vector2(x=center.x + r * math.cos(angle),
                        y=center.y + r * math.sin(angle))
@@ -356,8 +250,12 @@ class Game():
         
         offspring = []
         for _ in range(3):
-            blob = Blob.random(rng=self._rng, mean_traits=blob.traits, sdvs=self._mutation_sdvs, gen_position=f)
-            blob.position = self._bound_position(blob.position, blob.radius())
+            blob = Blob.random(rng=self._rng,
+                               mean_traits=blob.traits,
+                               sdvs=self._mutation_sdvs,
+                               separators=self._separators(),
+                               gen_position=f)
+            blob.position = utils.bound_position(blob.position, blob.radius(), self._separators())
             offspring.append(blob)
         return offspring
         
@@ -412,7 +310,7 @@ class Game():
                                     mean_size=mean_size,
                                     bounds=interval)
                 if candy != None:
-                    candy.position = self._bound_position(candy.position, candy.radius())
+                    candy.position = utils.bound_position(candy.position, candy.radius(), self._separators())
                     
                     self._candies.add(candy)
                     
@@ -563,7 +461,7 @@ class Game():
         self._draw_candies()
         self._draw_blobs()
         self._draw_separators()
-        self._draw_statbar()
+        # self._draw_statbar()
         
     def _separators(self) -> tuple[Rect, Rect]:
         width = self.SEPARATOR_WIDTH
@@ -584,7 +482,8 @@ class Game():
         pygame.init()
 
         self.screen = pygame.display.set_mode([self.SIM_WIDTH,
-                                          self.SIM_HEIGHT+self.STATBAR_HEIGHT])
+                                          self.SIM_HEIGHT+self.STATBAR_HEIGHT],
+                                              pygame.RESIZABLE)
 
         self._loop_clock.tick()
         self._paused_clock.tick()

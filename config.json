@@ -12,13 +12,13 @@
         "size_sdv": 1.5,
         "speed_sdv": 25
     },
-    "mean_candy_sizes": [10, 10],
-    "candy_size_sdvs": [1, 1],
-    "candy_spawn_rates": [20, 90],
+    "mean_candy_sizes": [20, 10],
+    "candy_size_sdvs": [2, 1],
+    "candy_spawn_rates": [25, 90],
     "cutoff_sharpness": 10,
     "n_candies": [60, 200],
     "n_blobs": 60,
     "candy_energy_density": 2000,
-    "separation_gap": 0.02,
-    "sim_speed": 5
+    "separation_gap": 0.8,
+    "sim_speed": 2
 }

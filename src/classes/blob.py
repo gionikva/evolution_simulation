@@ -1,7 +1,6 @@
 from collections.abc import Sequence, Callable
 from uuid import uuid4
-from pygame import time
-from pygame import Vector2, Color
+from pygame import time, Vector2, Color, Rect
 from classes.candy import Candy
 from classes.constants import *
 from classes.utils import *
@@ -138,42 +137,89 @@ class Blob():
     def age_by(self, time: float):
         self.age += time
     
-    # def _move(self, timediff):
-    #     candy = self._closest_candy()
-    #     dist = self.distance_to(candy)
-    #     self._acc = self.ACC_MULTIPLIER * Vector2(candy.position.x - self.position.x,
-    #                         candy.position.y - self.position.y) / dist
-    #     # self._acc -= self._vel * self.FRICTION 
-    #     self._vel += self._acc * timediff
-    #     if self._vel.magnitude() > self.traits.speed:
-    #         self._vel = self._vel * self.traits.speed / self._vel.magnitude()
-    #     # self._vel = min(self._vel, self.traits.speed)
+    def _move(self, 
+              candies: list[Candy],
+              blobs: list[Self],
+              separators: tuple[Rect, Rect],
+              timediff: float):
+        def visible(candy: Candy) -> bool:
+            for sep in separators:
+                if sep.clipline((self.position.x, self.position.y),
+                                (candy.position.x, candy.position.y)) != ():
+                    return False
+            return True
         
-    #     movement = (self._vel + 0.5 * self._acc) * timediff
+        candy = self.closest_candy(candies, visible)
         
-    #     self.position += movement
-    #     self._energy -= self.ENERGY_EXP_SIZE_R * self.traits.size * movement.magnitude() 
-    
-    # def _death(self):
-    #     pass
+        if candy == None:
+            return
+        
+        dist = self.distance_to(candy)
+        displacement = Vector2(candy.position.x - self.position.x,
+                            candy.position.y - self.position.y)
+        
+        
+        # New (basic) movement logic
+        # d_norm = displacement / displacement.magnitude()
+        
+        # blob.vel = d_norm * blob.traits.speed
+        
+        # movement = blob.vel * timediff
+        
+        # Old movement logic
+        
+        self.acc = Blob.ACC_MULTIPLIER * displacement / dist
+        # self._acc -= self._vel * self.FRICTION 
+        self.vel += self.acc * timediff
+        
+        
+       
+        
+        if self.vel.magnitude() > self.traits.speed:
+            self.vel = self.vel * self.traits.speed / self.vel.magnitude()
+        # self._vel = min(self._vel, self.traits.speed)
+        
+        fvel = self.vel + 0.2 * self.acc
+        
+        if fvel.magnitude() > self.traits.speed:
+            fvel = fvel * self.traits.speed / fvel.magnitude()
+        
+        movement = fvel * timediff
+                
 
-    # def _reproduce(self):
-    #     pass
+        oldpos = self.position
         
-    # def _lifecycle(self, timediff):
-    #     if self._energy <= 0:
-    #         self._death()
+        self.position = utils.bound_position(self.position + movement, self.radius(), separators)
+
+        movement = self.position - oldpos
         
-    #     if timediff >= self.LIFESPAN:
-    #         if self._energy / self._max_energy >= 0.5:
-    #             self._reproduce()
-    #         else:
-    #             self._death()            
+        # slope = movement.y / movement.x
         
-    # def on_loop(self):
-    #     timediff = self._clock.tick() / 1000
-    #     self._move(timediff)
-    #     self._lifecycle(timediff)
+        
+            
+        self.energy -= (Blob.ENERGY_EXP_SIZE_R * self.traits.size) * movement.magnitude() * \
+            (1 + Blob.VEL_ENERGY_MULT * self.vel.magnitude())
+    
+    def _death(self):
+        pass
+
+    def _reproduce(self):
+        pass
+        
+    def _lifecycle(self, timediff):
+        if self._energy <= 0:
+            self._death()
+        
+        if timediff >= self.LIFESPAN:
+            if self._energy / self._max_energy >= 0.5:
+                self._reproduce()
+            else:
+                self._death()            
+        
+    def on_loop(self):
+        timediff = self._clock.tick() / 1000
+        self._move(timediff)
+        self._lifecycle(timediff)
 
     def from_traits(size: float,
                     speed: float,
@@ -185,6 +231,7 @@ class Blob():
     def random(*, rng: Generator,
                   mean_traits: BlobTraits,
                   sdvs: MutationSdvs,
+                  separators: tuple[Rect, Rect],
                   gen_position: Callable[[], Vector2] = None) -> Self:
             size = max(utils.sample_normal(rng=rng,
                                      mean=mean_traits.size,
@@ -203,7 +250,7 @@ class Blob():
                 
             hue = rng.uniform(0., 360.)
             
-            position, _ = utils.bound_position(position, radius)
+            position = utils.bound_position(position, radius, separators)
             
             return Blob(traits=BlobTraits(size=size, speed=speed),
                         position=position,
