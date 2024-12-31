@@ -3,10 +3,9 @@ import pygame
 from typing import Self, IO
 from pygame.time import Clock
 from pygame.font import Font
-from pygame import Rect
+from pygame import Rect, Surface
 from classes.blob import *
 from classes.candy import Candy
-from classes.statbar import Statbar
 from classes.constants import SIZE_SCALE, SIM_WIDTH, SIM_HEIGHT
 import math
 from numpy import random
@@ -16,6 +15,8 @@ from numpy import random
 class Simulation():
     SIM_WIDTH=SIM_WIDTH
     SIM_HEIGHT=SIM_HEIGHT
+    
+    SEPARATOR_WIDTH = 80
     
     N_INTERVALS = 100
 
@@ -65,7 +66,7 @@ class Simulation():
                 
                 
                 separation_gap: float = 1,
-                sim_speed: float = 1,
+                sim_speed: float = 1
                 ):
 
         pygame.font.init()
@@ -73,31 +74,35 @@ class Simulation():
         self._seed = seed
         self._mean_traits = BlobTraits(size=mean_traits.size,
                                       speed=mean_traits.speed)
+     
+        self._initial_sdvs = initial_sdvs
+        
+        '''Simulation parameters'''
         self._mutation_sdvs = MutationSdvs(size_sdv=mutation_sdvs.size,
                                           speed_sdv=mutation_sdvs.speed)
-        self._initial_sdvs = initial_sdvs
         self._candy_energy_d = candy_energy_density
-        
         self._rng = random.default_rng(seed=seed)
-        self._loop_clock = Clock()
-        
         self._gap = separation_gap
         self._sim_speed = sim_speed
-    
         self._mean_candy_sizes = mean_candy_sizes
         self._candy_size_sdvs = candy_size_sdvs
         self._candy_spawn_rates = candy_spawn_rates
         self._n_candies = n_candies
         self._cutoff_sharpness = cutoff_sharpness
         
+        # Indicates whether simulation is paused (can be updated externally)
+        self._paused = False
+        
         self._intervals: list[Rect] = self._gen_intervals()
         
         self._candies = self._gen_initial_candies(n_candies)
         self._blobs = self._gen_initial_blobs(n_blobs)
-        self._statbar: Statbar = Statbar()
         
-        self._paused_clock = Clock()
-        self._paused_time = 0
+        self._loop_clock = Clock()        
+        self._loop_clock.tick()
+        
+        self._time: float = 0        
+        
         
     def from_config(file: IO) -> Self:
         config: dict = json.load(file)
@@ -117,6 +122,92 @@ class Simulation():
             separation_gap=config.get('separation_gap') if 'separation_gap' in config else 1.,
             sim_speed=config.get('sim_speed') if 'sim_speed' in config else 1.
         )
+    
+     
+    def mean_traits(self) -> tuple[BlobTraits, BlobTraits]:
+        leftsums = BlobTraits(size=0., speed=0.)
+        rightsums = BlobTraits(size=0., speed=0.)
+        
+        nleft = 0
+        nright = 0
+        
+        for blob in self._blobs:
+            if blob.position.x < SIM_WIDTH / 2:
+                leftsums.size += blob.traits.size
+                leftsums.speed += blob.traits.speed
+                nleft += 1
+            else:
+                rightsums.size += blob.traits.size
+                rightsums.speed += blob.traits.speed
+                nright += 1
+        
+        if nleft != 0:
+            lmean = BlobTraits(size = leftsums.size / nleft,
+                                speed = leftsums.speed / nleft)
+        else:
+            lmean = BlobTraits(size = None,
+                                speed = None)
+        
+        if nright != 0:
+            rmean = BlobTraits(size = rightsums.size / nright,
+                                speed = rightsums.speed / nright)
+        else:
+            rmean = BlobTraits(size = None,
+                                speed = None)
+        return (lmean,
+                rmean)
+      
+    # Toggles the paused state of the simulation
+    def playpause(self) -> bool:
+        self._paused = not self._paused
+        
+        if not self._paused:
+            self._loop_clock.tick()
+        
+        return self._paused
+    
+    
+    def on_loop(self):
+        
+        if self._paused: return
+        
+        timediff = self._sim_speed * self._loop_clock.tick() / 1000
+        self._time += timediff
+        
+        deadblobs = []
+        newblobs = []
+        
+        for blob in self._blobs:
+            eaten_candies =  self._move_blob(blob, timediff)
+            self._passive_energy_loss(blob, timediff)
+            blob.age_by(timediff)
+            dead, offspring = self._lifecycle_blob(blob, timediff)
+            
+            if dead:
+                deadblobs.append(blob)
+            
+            newblobs.extend(offspring)
+            
+            eaten_candies = self._eat(blob)
+            
+            for eaten in eaten_candies:
+                self._candies.remove(eaten)           
+        
+        for blob in deadblobs:
+            if blob in self._blobs:
+                self._blobs.remove(blob)
+        
+        for blob in newblobs:
+            self._blobs.add(blob)
+            
+        self._spawn_candy(timediff)
+    
+        
+    def draw(self, screen: Surface, position: Vector2):
+        self._draw_candies(screen, position)
+        self._draw_blobs(screen, position)
+        self._draw_separators(screen, position)
+  
     
     def _interpolate(self, *, x: float, range: tuple[float, float]):
         low, high = range
@@ -218,13 +309,6 @@ class Simulation():
                            mean: float,
                            std_dev: float):
         return utils.sample_normal(rng=rng, mean=mean, std_dev=std_dev)
-    
-    def _abs_time(self):
-        return time.get_ticks() / 1000 - self._paused_time
-    
-    def _time(self):
-        return self._sim_speed * self._abs_time()
-
 
     def _move_blob(self, blob, timediff):
         blob._move(self._candies, self._blobs, self._separators(), timediff)
@@ -317,105 +401,29 @@ class Simulation():
                     if len(self._candies) > self.CANDY_LIMIT:
                         self._candies.pop()
                     
-    def _calculate_mean_traits(self) -> tuple[BlobTraits, BlobTraits]:
-        leftsums = BlobTraits(size=0., speed=0.)
-        rightsums = BlobTraits(size=0., speed=0.)
-        
-        nleft = 0
-        nright = 0
-        
+   
+    def _draw_blobs(self, screen: Surface, offset: Vector2):
         for blob in self._blobs:
-            if blob.position.x < SIM_WIDTH / 2:
-                leftsums.size += blob.traits.size
-                leftsums.speed += blob.traits.speed
-                nleft += 1
-            else:
-                rightsums.size += blob.traits.size
-                rightsums.speed += blob.traits.speed
-                nright += 1
-        
-        if nleft != 0:
-            lmean = BlobTraits(size = leftsums.size / nleft,
-                                speed = leftsums.speed / nleft)
-        else:
-            lmean = BlobTraits(size = None,
-                                speed = None)
-        
-        if nright != 0:
-            rmean = BlobTraits(size = rightsums.size / nright,
-                                speed = rightsums.speed / nright)
-        else:
-            rmean = BlobTraits(size = None,
-                                speed = None)
-        return (lmean,
-                rmean)
-                
-    def on_loop(self):
-        timediff = self._sim_speed * self._loop_clock.tick() / 1000
-        
-        deadblobs = []
-        newblobs = []
-        
-        for blob in self._blobs:
-            eaten_candies =  self._move_blob(blob, timediff)
-            self._passive_energy_loss(blob, timediff)
-            blob.age_by(timediff)
-            dead, offspring = self._lifecycle_blob(blob, timediff)
-            
-            if dead:
-                deadblobs.append(blob)
-            
-            newblobs.extend(offspring)
-            
-            eaten_candies = self._eat(blob)
-            
-            for eaten in eaten_candies:
-                self._candies.remove(eaten)           
-          
-        for blob in deadblobs:
-            if blob in self._blobs:
-                self._blobs.remove(blob)
-        
-        for blob in newblobs:
-            self._blobs.add(blob)
-            
-        self._spawn_candy(timediff)
-      
-    
-    
-    def _draw_blob(self, blob: Blob):
-        pygame.draw.circle(self.screen,
+            pygame.draw.circle(screen,
                            blob.color,
-                           blob.position,
+                           blob.position + offset,
                            blob.radius())
         
-    def _draw_blobs(self):
-        for blob in self._blobs:
-            self._draw_blob(blob)
-            
-    def _draw_candy(self, candy: Candy):
-         pygame.draw.circle(self.screen,
-                            self.CANDY_COLOR,
-                            candy.position,
-                            candy.radius())
     
-    def _draw_candies(self):
+    def _draw_candies(self, screen: Surface, offset: Vector2):
         for candy in self._candies:
-            self._draw_candy(candy)
+            pygame.draw.circle(screen,
+                            self.CANDY_COLOR,
+                            candy.position + offset,
+                            candy.radius())
 
     
-    def _draw_separators(self):
+    def _draw_separators(self, screen: Surface, offset: Vector2):
         top, bottom = self._separators()
        
-        pygame.draw.rect(self.screen, 0x775002, top)
-        pygame.draw.rect(self.screen, 0x775002, bottom)
-    
-    def _draw(self):
-        self._draw_candies()
-        self._draw_blobs()
-        self._draw_separators()
-        # self._draw_statbar()
-        
+        pygame.draw.rect(screen, 0x775002, top.move(offset.x, offset.y))
+        pygame.draw.rect(screen, 0x775002, bottom.move(offset.x, offset.y))
+            
     def _separators(self) -> tuple[Rect, Rect]:
         width = self.SEPARATOR_WIDTH
         height = self.SIM_HEIGHT * (1 - self._gap)/2
@@ -427,4 +435,5 @@ class Simulation():
                     self.SIM_HEIGHT - height,
                     width,
                     height))
-  
+       
+      

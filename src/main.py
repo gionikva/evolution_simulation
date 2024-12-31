@@ -1,9 +1,10 @@
-from classes.game import *
 import sys
 import os.path
 
+from components.window import Window
+
 def main():
-   game = Game.from_config(open("./config.json"))
+   window = Window(open("./config.json"))
    # game = Game(
    #             seed = 10,
    #             mean_traits=BlobTraits(size=30,
@@ -22,7 +23,7 @@ def main():
    #             separation_gap=0.0,
    #             sim_speed=5.
    #             )
-   game.run()
+   window.run()
    
 if __name__ == "__main__":
     main()

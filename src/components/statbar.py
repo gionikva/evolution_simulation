@@ -1,10 +1,10 @@
 from pygame import Surface, Rect
-from constants import SIM_WIDTH, SIM_HEIGHT
+from classes.constants import SIM_WIDTH, SIM_HEIGHT
 class Statbar():
     HEIGHT = 180
     WIDTH = 80
     def __init__(self,
-                 screen: Sufrace):
+                 screen: Surface):
         self.screen: Surface = screen
         
     def _draw_trait_values(self, *,

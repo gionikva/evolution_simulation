@@ -3,45 +3,45 @@ import pygame
 from typing import Self, IO
 from pygame.time import Clock
 from pygame.font import Font
-from pygame import Rect
+from pygame import Rect, Surface
 from classes.blob import *
 from classes.candy import Candy
 from components.statbar import Statbar
+from components.simulation import Simulation
 from classes.constants import SIZE_SCALE, SIM_WIDTH, SIM_HEIGHT
 import math
 from numpy import random
 
 class Window():
+    WIDTH = 1920
+    HEIGHT = 1080
     
-    
-    def __init__(self):
+    def __init__(self, config: IO):
         pygame.init()
         
-        self._simulation: Simulation = Simulation()
-        self._statbar: Statbar = Statbar()
+        self._loop_clock = Clock()
+        self._paused_clock = Clock()
+        self._paused_time = 0
+
+        self._simulation: Simulation = Simulation.from_config(config)
+        # self._statbar: Statbar = Statbar()
         
-    def _draw():
-        self._draw_simulation()
-        self._draw_statbar()
+        # Screen for drawing with pygame.
+        # Initialized in self.run()
+        self._screen: Surface = None
+        
+    def _draw(self):
+        self._simulation.draw(self._screen, Vector2(0, 0))
         
     def run(self):
-       
-
-        self.screen = pygame.display.set_mode([self.SIM_WIDTH,
-                                            self.SIM_HEIGHT+self.STATBAR_HEIGHT],
+        self._screen = pygame.display.set_mode([self.WIDTH,
+                                                self.HEIGHT],
                                                 pygame.RESIZABLE)
 
-        self._loop_clock.tick()
-        self._paused_clock.tick()
-                
         running = True
-        paused = False
 
         while running:
-            if not paused:
-                self.on_loop()
-            else:
-                self._paused_time += self._paused_clock.tick() / 1000
+            self._simulation.on_loop()
 
             pressed_keys = pygame.key.get_pressed()
         
@@ -51,14 +51,10 @@ class Window():
                 
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_p:
-                        paused = not paused
-                        if paused:
-                            self._paused_clock.tick()
-                        else:
-                            self._loop_clock.tick()
+                        self._simulation.playpause()
 
             
-            self.screen.fill((255, 255, 255))
+            self._screen.fill((255, 255, 255))
             
             self._draw()
 
