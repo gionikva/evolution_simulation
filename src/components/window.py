@@ -30,8 +30,14 @@ class Window():
         # Initialized in self.run()
         self._screen: Surface = None
         
+        
+    # Gets current window dimensions
+    def _size(self):
+        return pygame.display.get_surface().get_size()
+    
     def _draw(self):
-        self._simulation.draw(self._screen, Vector2(0, 0))
+        self._simulation.draw(self._screen, Vector2(0, 0), self._size()[0])
+        # self._simulation.draw(, )
         
     def run(self):
         self._screen = pygame.display.set_mode([self.WIDTH,

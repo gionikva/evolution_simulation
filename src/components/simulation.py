@@ -10,8 +10,6 @@ from classes.constants import SIZE_SCALE, SIM_WIDTH, SIM_HEIGHT
 import math
 from numpy import random
 
-
-
 class Simulation():
     SIM_WIDTH=SIM_WIDTH
     SIM_HEIGHT=SIM_HEIGHT
@@ -77,9 +75,11 @@ class Simulation():
      
         self._initial_sdvs = initial_sdvs
         
+        self._surface = Surface((SIM_WIDTH, SIM_HEIGHT))
+        
         '''Simulation parameters'''
         self._mutation_sdvs = MutationSdvs(size_sdv=mutation_sdvs.size,
-                                          speed_sdv=mutation_sdvs.speed)
+                                           speed_sdv=mutation_sdvs.speed)
         self._candy_energy_d = candy_energy_density
         self._rng = random.default_rng(seed=seed)
         self._gap = separation_gap
@@ -102,7 +102,7 @@ class Simulation():
         self._loop_clock.tick()
         
         self._time: float = 0        
-        
+    
         
     def from_config(file: IO) -> Self:
         config: dict = json.load(file)
@@ -203,10 +203,12 @@ class Simulation():
         self._spawn_candy(timediff)
     
         
-    def draw(self, screen: Surface, position: Vector2):
-        self._draw_candies(screen, position)
-        self._draw_blobs(screen, position)
-        self._draw_separators(screen, position)
+    def draw(self, screen: Surface, position: Vector2, width: float):
+        self._surface.fill((255, 255, 255))
+        self._draw_candies()
+        self._draw_blobs()
+        self._draw_separators()
+        screen.blit(pygame.transform.smoothscale(self._surface, (width, (SIM_HEIGHT/SIM_WIDTH) * width)))
   
     
     def _interpolate(self, *, x: float, range: tuple[float, float]):
@@ -402,27 +404,27 @@ class Simulation():
                         self._candies.pop()
                     
    
-    def _draw_blobs(self, screen: Surface, offset: Vector2):
+    def _draw_blobs(self):
         for blob in self._blobs:
-            pygame.draw.circle(screen,
+            pygame.draw.circle(self._surface,
                            blob.color,
-                           blob.position + offset,
+                           blob.position,
                            blob.radius())
         
     
-    def _draw_candies(self, screen: Surface, offset: Vector2):
+    def _draw_candies(self):
         for candy in self._candies:
-            pygame.draw.circle(screen,
+            pygame.draw.circle(self._surface,
                             self.CANDY_COLOR,
-                            candy.position + offset,
+                            candy.position,
                             candy.radius())
 
     
-    def _draw_separators(self, screen: Surface, offset: Vector2):
+    def _draw_separators(self):
         top, bottom = self._separators()
        
-        pygame.draw.rect(screen, 0x775002, top.move(offset.x, offset.y))
-        pygame.draw.rect(screen, 0x775002, bottom.move(offset.x, offset.y))
+        pygame.draw.rect(self._surface, 0x775002, top)
+        pygame.draw.rect(self._surface, 0x775002, bottom)
             
     def _separators(self) -> tuple[Rect, Rect]:
         width = self.SEPARATOR_WIDTH
