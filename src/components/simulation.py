@@ -1,17 +1,15 @@
 import math
 import json
 import pygame
+from pygame import Surface
 from typing import Self, IO
-from pygame.time import Clock
-from pygame.font import Font
-from pygame import Rect, Surface
 from classes.blob import *
 from classes.candy import Candy
 from classes.constants import SIZE_SCALE, SIM_WIDTH, SIM_HEIGHT
 from numpy import random
 from PySide6 import QtCore, QtWidgets, QtGui
 from PySide6.QtWidgets import QWidget, QGraphicsView, QGraphicsScene, QLabel, QHBoxLayout, QGraphicsRectItem
-from PySide6.QtCore import QRectF, Qt
+from PySide6.QtCore import QRectF, Qt, QThread, QTimer, QElapsedTimer
 from PySide6.QtGui import QTransform, QBrush, QPen
 
 
@@ -73,76 +71,81 @@ class Simulation(QWidget):
                 ):
 
         super().__init__()
-
+        self._seed = seed
+        self._mean_traits = BlobTraits(size=mean_traits.size,
+                                      speed=mean_traits.speed)
+     
+        self._initial_sdvs = initial_sdvs
         
+        self._surface = Surface((SIM_WIDTH, SIM_HEIGHT))
+        
+        '''Simulation parameters'''
+        self._mutation_sdvs = MutationSdvs(size_sdv=mutation_sdvs.size,
+                                           speed_sdv=mutation_sdvs.speed)
+        self._candy_energy_d = candy_energy_density
+        self._rng = random.default_rng(seed=seed)
+        self._gap = separation_gap
+        self._sim_speed = sim_speed
+        self._mean_candy_sizes = mean_candy_sizes
+        self._candy_size_sdvs = candy_size_sdvs
+        self._candy_spawn_rates = candy_spawn_rates
+        self._n_candies = n_candies
+        self._n_blobs = n_blobs
+        self._cutoff_sharpness = cutoff_sharpness
+        
+        # Indicates whether simulation is paused (can be updated externally)
+       
+        self._setupUi()
 
-
+    def _setupUi(self):
         self.scene = QGraphicsScene(0, 0, self.SIM_WIDTH, self.SIM_HEIGHT)
+
+        self._paused = False
+        
+        self._intervals: list[Rect] = self._gen_intervals()
+        
+        # self._candies = self._gen_initial_candies(self._n_candies)
+        self._blobs = self._gen_initial_blobs(self._n_blobs)
+        
+        self._loop_clock = QElapsedTimer() 
+        self._loop_clock.start()
                 
+        self._time: float = 0    
+        
                 
         self.scene.addRect(0., 0.,self.SIM_WIDTH, self.SIM_HEIGHT, QPen(Qt.transparent),
                            QBrush(Qt.white))
-        # self.scene.setBackgroundBrush(QBrush(Qt.white))
-        # Draw a rectangle item, setting the dimensions.
+        
         self.rect = QGraphicsRectItem(0, 0, 200, 200)
 
-        # Set the origin (position) of the rectangle in the self..
         self.rect.setPos(0, 0)
 
-        # Define the brush (fill).
         brush = QBrush(Qt.red)
         self.rect.setBrush(brush)
         self.rect.setPen(QPen(Qt.transparent))
 
         
         self.scene.addItem(self.rect)
-        # self.scene.setBackgroundBrush( QBrush(Qt.white))
 
         self._graphics = QGraphicsView(self.scene, self)
-        # self._graphics.setGeometry(0, 0, 10, 10)
         
-        # self._graphics.setBackgroundBrush(QBrush(Qt.white))
         self._graphics.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
 
         self._layout = QHBoxLayout(self)
         self._layout.addWidget(self._graphics)
         
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.on_loop)
+        self.timer.start(0)
 
-        # self._seed = seed
-        # self._mean_traits = BlobTraits(size=mean_traits.size,
-        #                               speed=mean_traits.speed)
-     
-        # self._initial_sdvs = initial_sdvs
-        
-        # self._surface = Surface((SIM_WIDTH, SIM_HEIGHT))
-        
-        # '''Simulation parameters'''
-        # self._mutation_sdvs = MutationSdvs(size_sdv=mutation_sdvs.size,
-        #                                    speed_sdv=mutation_sdvs.speed)
-        # self._candy_energy_d = candy_energy_density
-        # self._rng = random.default_rng(seed=seed)
-        # self._gap = separation_gap
-        # self._sim_speed = sim_speed
-        # self._mean_candy_sizes = mean_candy_sizes
-        # self._candy_size_sdvs = candy_size_sdvs
-        # self._candy_spawn_rates = candy_spawn_rates
-        # self._n_candies = n_candies
-        # self._cutoff_sharpness = cutoff_sharpness
-        
-        # # Indicates whether simulation is paused (can be updated externally)
-        # self._paused = False
-        
-        # self._intervals: list[Rect] = self._gen_intervals()
-        
-        # self._candies = self._gen_initial_candies(n_candies)
-        # self._blobs = self._gen_initial_blobs(n_blobs)
-        
-        # self._loop_clock = Clock()        
-        # self._loop_clock.tick()
-        
-        # self._time: float = 0        
+        self.add_items()
+       
+         
+    
+    
     def updateView(self):
+        self.rect.setPos(self.rect.pos().x() + 1, self.rect.pos().y())
         r = self.scene.sceneRect()
         self._graphics.fitInView(r, Qt.KeepAspectRatio)
     
@@ -215,54 +218,59 @@ class Simulation(QWidget):
     
     
     def on_loop(self):
+        timdiff = self._loop_clock.nsecsElapsed() / 1000000000
+        self._loop_clock.restart()
+        self.rect.moveBy(100*timdiff, 0)
         
-        if self._paused: return
+        # print(timdiff)
         
-        timediff = self._sim_speed * self._loop_clock.tick() / 1000
-        self._time += timediff
+        # if self._paused: return
         
-        deadblobs = []
-        newblobs = []
+        # timediff = self._sim_speed * self._loop_clock.tick() / 1000
+        # self._time += timediff
         
-        for blob in self._blobs:
-            eaten_candies =  self._move_blob(blob, timediff)
-            self._passive_energy_loss(blob, timediff)
-            blob.age_by(timediff)
-            dead, offspring = self._lifecycle_blob(blob, timediff)
+        # deadblobs = []
+        # newblobs = []
+        
+        # for blob in self._blobs:
+        #     eaten_candies =  self._move_blob(blob, timediff)
+        #     self._passive_energy_loss(blob, timediff)
+        #     blob.age_by(timediff)
+        #     dead, offspring = self._lifecycle_blob(blob, timediff)
             
-            if dead:
-                deadblobs.append(blob)
+        #     if dead:
+        #         deadblobs.append(blob)
             
-            newblobs.extend(offspring)
+        #     newblobs.extend(offspring)
             
-            eaten_candies = self._eat(blob)
+        #     eaten_candies = self._eat(blob)
             
-            for eaten in eaten_candies:
-                self._candies.remove(eaten)           
+        #     for eaten in eaten_candies:
+        #         self._candies.remove(eaten)           
         
-        for blob in deadblobs:
-            if blob in self._blobs:
-                self._blobs.remove(blob)
+        # for blob in deadblobs:
+        #     if blob in self._blobs:
+        #         self._blobs.remove(blob)
         
-        for blob in newblobs:
-            self._blobs.add(blob)
+        # for blob in newblobs:
+        #     self._blobs.add(blob)
             
-        self._spawn_candy(timediff)
+        # self._spawn_candy(timediff)
     
         
-    def draw(self, screen: Surface, position: Vector2, bounds: tuple[int, int]) -> Rect:
-        self._surface.fill((255, 255, 255))
-        self._draw_candies()
-        self._draw_blobs()
-        self._draw_separators()
+    def add_items(self) -> Rect:
+        # self._surface.fill((255, 255, 255))
+        # self._add_candies()
+        self._add_blobs()
+        # self._draw_separators()
         
        
-        dims = self.size(bounds)
-        pos = ((bounds[0] - dims[0]) / 2, (bounds[1] - dims[1]) / 2)
+        # dims = self.size(bounds)
+        # pos = ((bounds[0] - dims[0]) / 2, (bounds[1] - dims[1]) / 2)
         
-        screen.blit(pygame.transform.smoothscale(self._surface, dims),
-                    pos)
-        return Rect(pos[0], pos[1], dims[1], dims[1])
+        # screen.blit(pygame.transform.smoothscale(self._surface, dims),
+        #             pos)
+        # return Rect(pos[0], pos[1], dims[1], dims[1])
         
         
     def size(self, bounds: tuple[int, int]):
@@ -469,15 +477,12 @@ class Simulation(QWidget):
                         self._candies.pop()
                     
    
-    def _draw_blobs(self):
+    def _add_blobs(self):
         for blob in self._blobs:
-            pygame.draw.circle(self._surface,
-                           blob.color,
-                           blob.position,
-                           blob.radius())
+            self.scene.addItem(blob._ellipse)
         
     
-    def _draw_candies(self):
+    def _add_candies(self):
         for candy in self._candies:
             pygame.draw.circle(self._surface,
                             self.CANDY_COLOR,

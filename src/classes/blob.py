@@ -1,6 +1,9 @@
 from collections.abc import Sequence, Callable
 from uuid import uuid4
 from pygame import time, Vector2, Color, Rect
+from PySide6.QtGui import QVector2D, QBrush, QPen, QColor
+from PySide6.QtWidgets import QGraphicsEllipseItem
+from PySide6.QtCore import Qt
 from classes.candy import Candy
 from classes.constants import *
 from classes.utils import *
@@ -112,6 +115,21 @@ class Blob():
         # color
         self.color = Color(0, 0, 0)
         self.color.hsla = (hue, 85, 45, 1)
+        
+        self.create_item(hue)
+        
+    # creates QGraphicsItem needed to render the blob
+    def create_item(self, hue: float):
+        d = utils.radius(self.traits.size)*2
+        
+        self._ellipse = QGraphicsEllipseItem(self.position.x-d/2,
+                                             self.position.y-d/2, 
+                                             d,
+                                             d)
+        
+
+        
+        self._ellipse.setBrush(QBrush(QColor.fromHslF(hue, 1, 0.5, 1.)))
         
     def distance_to(self, other):
         return math.sqrt((self.position.x - other.position.x)**2 +
@@ -248,7 +266,7 @@ class Blob():
             else:
                 position = gen_position()
                 
-            hue = rng.uniform(0., 360.)
+            hue = rng.uniform(0., 1.)
             
             position = utils.bound_position(position, radius, separators)
             
