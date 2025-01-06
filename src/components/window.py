@@ -8,31 +8,39 @@ from pygame import Rect, Surface, Vector2
 from components.toolbar import Toolbar
 from components.simulation import Simulation
 from classes.constants import SIZE_SCALE, SIM_WIDTH, SIM_HEIGHT
+from PySide6 import QtCore, QtWidgets, QtGui
+from PySide6.QtWidgets import QWidget, QGraphicsView, QGraphicsScene, QLabel, QHBoxLayout, QGraphicsRectItem
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QTransform, QBrush, QPen
 
-
-class Window():
+class Window(QWidget):
     WIDTH = 1920
     HEIGHT = 1080
     
-
     
     def __init__(self, config: IO):
         super().__init__()
 
-        pygame.init()
+        # pygame.init()
         
-        self._loop_clock = Clock()
-        self._paused_clock = Clock()
-        self._paused_time = 0
+        self._simulation = Simulation.from_config(config)
+        
+        self._text = QLabel("Hello World",
+                                     alignment=QtCore.Qt.AlignCenter)
 
-        self._simulation: Simulation = Simulation.from_config(config)
-        self._toolbar: Toolbar = Toolbar()
+        self._layout = QHBoxLayout(self)
+        
+        self._layout.addWidget(self._simulation)
+        self._layout.addWidget(self._text)
+        
+        # self._simulation: Simulation = Simulation.from_config(config)
+        # self._toolbar: Toolbar = Toolbar()
         
         # Screen for drawing with pygame.
         # Initialized in self.run()
-        self._screen: Surface = None
+        # self._screen: Surface = None
         
-        
+    
     # Gets current window dimensions
     def _size(self):
         return pygame.display.get_surface().get_size()

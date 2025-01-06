@@ -1,3 +1,4 @@
+import math
 import json
 import pygame
 from typing import Self, IO
@@ -7,10 +8,14 @@ from pygame import Rect, Surface
 from classes.blob import *
 from classes.candy import Candy
 from classes.constants import SIZE_SCALE, SIM_WIDTH, SIM_HEIGHT
-import math
 from numpy import random
+from PySide6 import QtCore, QtWidgets, QtGui
+from PySide6.QtWidgets import QWidget, QGraphicsView, QGraphicsScene, QLabel, QHBoxLayout, QGraphicsRectItem
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QTransform, QBrush, QPen
 
-class Simulation():
+
+class Simulation(QWidget):
     SIM_WIDTH=SIM_WIDTH
     SIM_HEIGHT=SIM_HEIGHT
     
@@ -67,42 +72,84 @@ class Simulation():
                 sim_speed: float = 1
                 ):
 
-        pygame.font.init()
+        super().__init__()
 
-        self._seed = seed
-        self._mean_traits = BlobTraits(size=mean_traits.size,
-                                      speed=mean_traits.speed)
+        
+
+
+        self.scene = QGraphicsScene(0, 0, self.SIM_WIDTH, self.SIM_HEIGHT)
+                
+                
+        self.scene.addRect(0., 0.,self.SIM_WIDTH, self.SIM_HEIGHT, QPen(Qt.transparent),
+                           QBrush(Qt.white))
+        # self.scene.setBackgroundBrush(QBrush(Qt.white))
+        # Draw a rectangle item, setting the dimensions.
+        self.rect = QGraphicsRectItem(0, 0, 200, 200)
+
+        # Set the origin (position) of the rectangle in the self..
+        self.rect.setPos(0, 0)
+
+        # Define the brush (fill).
+        brush = QBrush(Qt.red)
+        self.rect.setBrush(brush)
+        self.rect.setPen(QPen(Qt.transparent))
+
+        
+        self.scene.addItem(self.rect)
+        # self.scene.setBackgroundBrush( QBrush(Qt.white))
+
+        self._graphics = QGraphicsView(self.scene, self)
+        # self._graphics.setGeometry(0, 0, 10, 10)
+        
+        # self._graphics.setBackgroundBrush(QBrush(Qt.white))
+        self._graphics.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+
+
+        self._layout = QHBoxLayout(self)
+        self._layout.addWidget(self._graphics)
+        
+
+        # self._seed = seed
+        # self._mean_traits = BlobTraits(size=mean_traits.size,
+        #                               speed=mean_traits.speed)
      
-        self._initial_sdvs = initial_sdvs
+        # self._initial_sdvs = initial_sdvs
         
-        self._surface = Surface((SIM_WIDTH, SIM_HEIGHT))
+        # self._surface = Surface((SIM_WIDTH, SIM_HEIGHT))
         
-        '''Simulation parameters'''
-        self._mutation_sdvs = MutationSdvs(size_sdv=mutation_sdvs.size,
-                                           speed_sdv=mutation_sdvs.speed)
-        self._candy_energy_d = candy_energy_density
-        self._rng = random.default_rng(seed=seed)
-        self._gap = separation_gap
-        self._sim_speed = sim_speed
-        self._mean_candy_sizes = mean_candy_sizes
-        self._candy_size_sdvs = candy_size_sdvs
-        self._candy_spawn_rates = candy_spawn_rates
-        self._n_candies = n_candies
-        self._cutoff_sharpness = cutoff_sharpness
+        # '''Simulation parameters'''
+        # self._mutation_sdvs = MutationSdvs(size_sdv=mutation_sdvs.size,
+        #                                    speed_sdv=mutation_sdvs.speed)
+        # self._candy_energy_d = candy_energy_density
+        # self._rng = random.default_rng(seed=seed)
+        # self._gap = separation_gap
+        # self._sim_speed = sim_speed
+        # self._mean_candy_sizes = mean_candy_sizes
+        # self._candy_size_sdvs = candy_size_sdvs
+        # self._candy_spawn_rates = candy_spawn_rates
+        # self._n_candies = n_candies
+        # self._cutoff_sharpness = cutoff_sharpness
         
-        # Indicates whether simulation is paused (can be updated externally)
-        self._paused = False
+        # # Indicates whether simulation is paused (can be updated externally)
+        # self._paused = False
         
-        self._intervals: list[Rect] = self._gen_intervals()
+        # self._intervals: list[Rect] = self._gen_intervals()
         
-        self._candies = self._gen_initial_candies(n_candies)
-        self._blobs = self._gen_initial_blobs(n_blobs)
+        # self._candies = self._gen_initial_candies(n_candies)
+        # self._blobs = self._gen_initial_blobs(n_blobs)
         
-        self._loop_clock = Clock()        
-        self._loop_clock.tick()
+        # self._loop_clock = Clock()        
+        # self._loop_clock.tick()
         
-        self._time: float = 0        
+        # self._time: float = 0        
+    def updateView(self):
+        r = self.scene.sceneRect()
+        self._graphics.fitInView(r, Qt.KeepAspectRatio)
     
+    def resizeEvent(self, event):
+        self.updateView()
+    def showEvent(self, event):
+        self.updateView()
         
     def from_config(file: IO) -> Self:
         config: dict = json.load(file)
