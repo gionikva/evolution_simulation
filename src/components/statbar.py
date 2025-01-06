@@ -1,11 +1,11 @@
-from pygame import Surface, Rect
+from pygame import Surface, Rect, Vector2
 from classes.constants import SIM_WIDTH, SIM_HEIGHT
 class Statbar():
-    HEIGHT = 180
     WIDTH = 80
-    def __init__(self,
-                 screen: Surface):
-        self.screen: Surface = screen
+
+    HEIGHT = 180
+    def __init__(self):
+        self._surface = Surface((self.WIDTH, self.HEIGHT))
         
     def _draw_trait_values(self, *,
                            position: tuple[int, int], 
@@ -25,19 +25,19 @@ class Statbar():
         margin = 50
 
         if alignleft:
-            self.screen.blit(text1, position)
-            self.screen.blit(text2, (position[0], position[1] + margin))
-            self.screen.blit(text3, (position[0], position[1] + margin * 2))
+            self._surface.blit(text1, position)
+            self._surface.blit(text2, (position[0], position[1] + margin))
+            self._surface.blit(text3, (position[0], position[1] + margin * 2))
         else:
-            self.screen.blit(text1, (position[0] - text1.get_width(), position[1]))
-            self.screen.blit(text2, (position[0] - text2.get_width(), position[1] + margin))
-            self.screen.blit(text3, (position[0] - text3.get_width(), position[1] + margin * 2))
+            self._surface.blit(text1, (position[0] - text1.get_width(), position[1]))
+            self._surface.blit(text2, (position[0] - text2.get_width(), position[1] + margin))
+            self._surface.blit(text3, (position[0] - text3.get_width(), position[1] + margin * 2))
             
 
     
-    def draw(self, lmean: float, rmean: float):
-        pygame.draw.rect(self.screen, (0, 0, 0), Rect(0, SIM_HEIGHT-1, SIM_WIDTH, 5))
-        pygame.draw.line(self.screen, (0, 0, 0), (SIM_WIDTH/2, SIM_HEIGHT),
+    def _draw(self, lmean: float, rmean: float):
+        pygame.draw.rect(self._surface, (0, 0, 0), Rect(0, SIM_HEIGHT-1, SIM_WIDTH, 5))
+        pygame.draw.line(self._surface, (0, 0, 0), (SIM_WIDTH/2, SIM_HEIGHT),
                          (SIM_WIDTH/2, SIM_HEIGHT + self.STATBAR_HEIGHT),
                          5)
                 
@@ -49,3 +49,23 @@ class Statbar():
                                 mean_size=rmean.size,
                                 mean_speed=rmean.speed,
                                 alignleft=True)
+    
+    def draw(self, screen: Surface, offset: float, bounds: tuple[int, int], means: tuple[float, float]): 
+        self._draw(means[0], means[1])
+        dims = self.size(bounds)
+        pos = ((bounds[0] - dims[0]) / 2, offset)
+        
+        screen.blit(pygame.transform.smoothscale(self._surface, dims),
+                    pos)
+        return Rect(pos[0], pos[1], dims[1], dims[1])
+        
+        
+    def size(self, bounds: tuple[int, int]):
+        width, height = bounds
+        
+        if width / height < SIM_WIDTH / SIM_HEIGHT:
+            dims = (width, (SIM_HEIGHT/SIM_WIDTH) * width)
+        else:
+            dims = (height * (SIM_WIDTH/SIM_HEIGHT), height)
+        
+        return dims

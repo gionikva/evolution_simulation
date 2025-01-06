@@ -203,12 +203,30 @@ class Simulation():
         self._spawn_candy(timediff)
     
         
-    def draw(self, screen: Surface, position: Vector2, width: float):
+    def draw(self, screen: Surface, position: Vector2, bounds: tuple[int, int]) -> Rect:
         self._surface.fill((255, 255, 255))
         self._draw_candies()
         self._draw_blobs()
         self._draw_separators()
-        screen.blit(pygame.transform.smoothscale(self._surface, (width, (SIM_HEIGHT/SIM_WIDTH) * width)))
+        
+       
+        dims = self.size(bounds)
+        pos = ((bounds[0] - dims[0]) / 2, (bounds[1] - dims[1]) / 2)
+        
+        screen.blit(pygame.transform.smoothscale(self._surface, dims),
+                    pos)
+        return Rect(pos[0], pos[1], dims[1], dims[1])
+        
+        
+    def size(self, bounds: tuple[int, int]):
+        width, height = bounds
+        
+        if width / height < SIM_WIDTH / SIM_HEIGHT:
+            dims = (width, (SIM_HEIGHT/SIM_WIDTH) * width)
+        else:
+            dims = (height * (SIM_WIDTH/SIM_HEIGHT), height)
+        
+        return dims
   
     
     def _interpolate(self, *, x: float, range: tuple[float, float]):

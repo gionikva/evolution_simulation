@@ -4,5 +4,9 @@
 SIZE_SCALE = 200.
 
 # Screen width and height
-SIM_WIDTH = 1920
-SIM_HEIGHT = 900
+SIM_WIDTH = 1400
+SIM_HEIGHT = 1000
+
+THEME = {
+    'toolbar_bg': (215, 215, 215)
+}

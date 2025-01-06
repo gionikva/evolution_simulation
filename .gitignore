@@ -3,3 +3,5 @@ build/
 dist/
 *.pyc
 main.spec
+
+__pycache__/
