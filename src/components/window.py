@@ -4,7 +4,7 @@ import pygame
 from typing import Self, IO
 from pygame.time import Clock
 from pygame.font import Font
-from pygame import Rect, Surface, Vector2
+from pygame import Surface, Vector2
 from components.toolbar import Toolbar
 from components.simulation import Simulation
 from classes.constants import SIZE_SCALE, SIM_WIDTH, SIM_HEIGHT
@@ -46,10 +46,10 @@ class Window(QWidget):
         return pygame.display.get_surface().get_size()
     
     def _build_ui(self):
-        button_layout_rect = pygame.Rect(30, 20, 100, 20)
+        button_layout_rect = pygame.QRectF(30, 20, 100, 20)
 
 
-        UIButton(relative_rect=Rect(30, 20, 1000, 20),
+        UIButton(relative_rect=QRectF(30, 20, 1000, 20),
           text='Hello', manager=self._manager,
             container=self._manager.root_container,
           anchors={'center': 'center'})

@@ -1,7 +1,6 @@
 import math
 from collections.abc import Callable
 from uuid import uuid4
-from pygame import Rect
 from PySide6.QtGui import QVector2D, QBrush, QPen, QColor
 from PySide6.QtWidgets import QGraphicsEllipseItem
 from PySide6.QtCore import Qt
@@ -44,7 +43,7 @@ class Candy():
     def random(*, rng: Generator,
                   mean_size: float,
                   sdv: float,
-                  bounds: Rect,
+                  bounds: QRectF,
                   gen_position: Callable[[], QVector2D] = None) -> Self:
         size = max(utils.sample_normal(rng=rng,
                                  mean=mean_size,
@@ -53,11 +52,11 @@ class Candy():
         
         radius = utils.radius(size)
         
-        if bounds.bottom - bounds.top < radius * 2:
+        if bounds.bottom() - bounds.top() < radius * 2:
             return None
         
-        position = QVector2D(rng.uniform(bounds.left + radius, bounds.right - radius),
-                             rng.uniform(bounds.top + radius, bounds.bottom - radius))
+        position = QVector2D(rng.uniform(bounds.left() + radius, bounds.right() - radius),
+                             rng.uniform(bounds.top() + radius, bounds.bottom() - radius))
         
         return Candy(size=size,
                      position=position,

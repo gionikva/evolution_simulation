@@ -1,4 +1,5 @@
-from pygame import Surface, Rect, Vector2
+from pygame import Surface, Vector2
+from PySide6.QtCore import QRectF
 from classes.constants import SIM_WIDTH, SIM_HEIGHT
 class Statbar():
     WIDTH = 80
@@ -36,7 +37,7 @@ class Statbar():
 
     
     def _draw(self, lmean: float, rmean: float):
-        pygame.draw.rect(self._surface, (0, 0, 0), Rect(0, SIM_HEIGHT-1, SIM_WIDTH, 5))
+        pygame.draw.rect(self._surface, (0, 0, 0), QRectF(0, SIM_HEIGHT-1, SIM_WIDTH, 5))
         pygame.draw.line(self._surface, (0, 0, 0), (SIM_WIDTH/2, SIM_HEIGHT),
                          (SIM_WIDTH/2, SIM_HEIGHT + self.STATBAR_HEIGHT),
                          5)
@@ -57,7 +58,7 @@ class Statbar():
         
         screen.blit(pygame.transform.smoothscale(self._surface, dims),
                     pos)
-        return Rect(pos[0], pos[1], dims[1], dims[1])
+        return QRectF(pos[0], pos[1], dims[1], dims[1])
         
         
     def size(self, bounds: tuple[int, int]):

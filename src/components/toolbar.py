@@ -1,5 +1,6 @@
 import pygame
-from pygame import Surface, Rect, Vector2
+from pygame import Surface, Vector2
+from PySide6.QtCore import QRectF
 from classes.stats import SimStats
 from classes.constants import SIM_WIDTH, SIM_HEIGHT, THEME
 class Toolbar():

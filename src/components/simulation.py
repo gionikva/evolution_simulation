@@ -106,7 +106,7 @@ class Simulation(QWidget):
         
         self._paused = False
         
-        self._intervals: list[Rect] = self._gen_intervals()
+        self._intervals: list[QRectF] = self._gen_intervals()
         
         self._candies = self._gen_initial_candies(self._n_candies)
         self._blobs = self._gen_initial_blobs(self._n_blobs)
@@ -239,7 +239,7 @@ class Simulation(QWidget):
         # self._spawn_candy(timediff)
     
         
-    def add_items(self) -> Rect:
+    def add_items(self) -> QRectF:
         # self._surface.fill((255, 255, 255))
         self._add_candies()
         self._add_blobs()
@@ -285,25 +285,30 @@ class Simulation(QWidget):
     def _interval_width(self):
         return self.SIM_WIDTH / self.N_INTERVALS
     
-    def _gen_interval(self, i: int) -> Rect:
+    def _gen_interval(self, i: int) -> QRectF:
         left = self._interval_width() * i
         width = self._interval_width()
-        rect = Rect(left,
+        rect = QRectF(left,
                      0, 
                      width,
                      self.SIM_HEIGHT)
         
         separators = self._separators()
         
-        if rect.collidelist(separators) != -1:
-            rect = Rect(left,
-                         separators[0].bottom,
+    
+        
+        rect.intersects(separators[0])
+    
+        # checks if either separator intersects with the interval
+        if any(map(lambda s: rect.intersects(s), separators)):
+            rect = QRectF(left,
+                         separators[0].bottom(),
                          width,
                          self._gap * self.SIM_HEIGHT)
         
         return rect
     
-    def _gen_intervals(self) -> list[Rect]:
+    def _gen_intervals(self) -> list[QRectF]:
         return [self._gen_interval(i) for i in range(self.N_INTERVALS)]
             
     
@@ -325,7 +330,7 @@ class Simulation(QWidget):
     def _generate_candies(self, n: int,
                           mean_size: float,
                           sdv: float,
-                          region: Rect) -> list[Candy]:
+                          region: QRectF) -> list[Candy]:
         candies = []
         for i in range(n):
             candy = Candy.random(mean_size=mean_size,
@@ -341,14 +346,14 @@ class Simulation(QWidget):
         candies.update(self._generate_candies(self._n_candies[0],
                                               self._mean_candy_sizes[0],
                                               self._candy_size_sdvs[0],
-                                              Rect(0,
+                                              QRectF(0,
                                                    0,
                                                    (self.SIM_WIDTH - self.SEPARATOR_WIDTH) / 2,
                                                    self.SIM_HEIGHT)))
         candies.update(self._generate_candies(self._n_candies[1],
                                               self._mean_candy_sizes[1],
                                               self._candy_size_sdvs[1],
-                                              Rect((self.SIM_WIDTH + self.SEPARATOR_WIDTH)/2,
+                                              QRectF((self.SIM_WIDTH + self.SEPARATOR_WIDTH)/2,
                                                    0,
                                                    (self.SIM_WIDTH - self.SEPARATOR_WIDTH) / 2,
                                                    self.SIM_HEIGHT)))
@@ -474,14 +479,14 @@ class Simulation(QWidget):
         pygame.draw.rect(self._surface, 0x775002, top)
         pygame.draw.rect(self._surface, 0x775002, bottom)
             
-    def _separators(self) -> tuple[Rect, Rect]:
+    def _separators(self) -> tuple[QRectF, QRectF]:
         width = self.SEPARATOR_WIDTH
         height = self.SIM_HEIGHT * (1 - self._gap)/2
-        return (Rect(self.SIM_WIDTH/2 - width/2,
+        return (QRectF(self.SIM_WIDTH/2 - width/2,
                     0,
                     width,
                     height),
-                Rect(self.SIM_WIDTH/2 - width/2,
+                QRectF(self.SIM_WIDTH/2 - width/2,
                     self.SIM_HEIGHT - height,
                     width,
                     height))

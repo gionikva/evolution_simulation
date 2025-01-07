@@ -1,9 +1,9 @@
 from collections.abc import Sequence, Callable
 from uuid import uuid4
-from pygame import time, Color, Rect
+from pygame import time, Color
 from PySide6.QtGui import QVector2D, QBrush, QPen, QColor
 from PySide6.QtWidgets import QGraphicsEllipseItem
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRectF
 from classes.candy import Candy
 from classes.constants import *
 from classes.utils import *
@@ -162,16 +162,21 @@ class Blob():
     def _move(self, 
               candies: list[Candy],
               blobs: list[Self],
-              separators: tuple[Rect, Rect],
+              separators: tuple[QRectF, QRectF],
               timediff: float):
-        def visible(candy: Candy) -> bool:
-            for sep in separators:
-                if sep.clipline((self.position.x(), self.position.y()),
-                                (candy.position.x(), candy.position.y())) != ():
-                    return False
-            return True
         
-        candy = self.closest_candy(candies, visible)
+        # TODO: REIMPLEMENT CLOSEST CANDY LOGIC
+        # def visible(candy: Candy) -> bool:
+        #     for sep in separators:
+        #         # fix this
+        #         if sep.clipline((self.position.x(), self.position.y()),
+        #                         (candy.position.x(), candy.position.y())) != ():
+        #             return False
+        #     return True
+        
+        # candy = self.closest_candy(candies, visible)
+        
+        candy = self.closest_candy(candies, lambda _: True)
         
         if candy == None:
             return
@@ -253,7 +258,7 @@ class Blob():
     def random(*, rng: Generator,
                   mean_traits: BlobTraits,
                   sdvs: MutationSdvs,
-                  separators: tuple[Rect, Rect],
+                  separators: tuple[QRectF, QRectF],
                   gen_position: Callable[[], QVector2D] = None) -> Self:
             size = max(utils.sample_normal(rng=rng,
                                      mean=mean_traits.size,
