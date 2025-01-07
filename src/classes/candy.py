@@ -56,8 +56,8 @@ class Candy():
         if bounds.bottom - bounds.top < radius * 2:
             return None
         
-        position = QVector2D(rng.uniform(bounds.left, bounds.right),
-                    rng.uniform(bounds.top + radius, bounds.bottom - radius))
+        position = QVector2D(rng.uniform(bounds.left + radius, bounds.right - radius),
+                             rng.uniform(bounds.top + radius, bounds.bottom - radius))
         
         return Candy(size=size,
                      position=position,

@@ -100,7 +100,8 @@ class Simulation(QWidget):
     def _setupUi(self):
         self.scene = QGraphicsScene(0, 0, self.SIM_WIDTH, self.SIM_HEIGHT)
 
-        self.scene.addRect(0., 0.,self.SIM_WIDTH, self.SIM_HEIGHT, QPen(Qt.NoPen),
+        self.scene.addRect(0., 0.,self.SIM_WIDTH, self.SIM_HEIGHT,
+                           QPen(Qt.NoPen),
                            QBrush(Qt.white))
         
         self._paused = False
