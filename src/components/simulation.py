@@ -8,7 +8,7 @@ from classes.candy import Candy
 from classes.constants import SIZE_SCALE, SIM_WIDTH, SIM_HEIGHT
 from numpy import random
 from PySide6 import QtCore, QtWidgets, QtGui
-from PySide6.QtWidgets import QWidget, QGraphicsView, QGraphicsScene, QLabel, QHBoxLayout, QGraphicsRectItem
+from PySide6.QtWidgets import QWidget, QGraphicsView, QGraphicsScene, QLabel, QHBoxLayout, QGraphicsRectItem, QFrame
 from PySide6.QtCore import QRectF, Qt, QThread, QTimer, QElapsedTimer
 from PySide6.QtGui import QTransform, QBrush, QPen
 
@@ -100,35 +100,23 @@ class Simulation(QWidget):
     def _setupUi(self):
         self.scene = QGraphicsScene(0, 0, self.SIM_WIDTH, self.SIM_HEIGHT)
 
+        self.scene.addRect(0., 0.,self.SIM_WIDTH, self.SIM_HEIGHT, QPen(Qt.NoPen),
+                           QBrush(Qt.white))
+        
         self._paused = False
         
         self._intervals: list[Rect] = self._gen_intervals()
         
-        # self._candies = self._gen_initial_candies(self._n_candies)
+        self._candies = self._gen_initial_candies(self._n_candies)
         self._blobs = self._gen_initial_blobs(self._n_blobs)
         
         self._loop_clock = QElapsedTimer() 
         self._loop_clock.start()
                 
         self._time: float = 0    
-        
-                
-        self.scene.addRect(0., 0.,self.SIM_WIDTH, self.SIM_HEIGHT, QPen(Qt.transparent),
-                           QBrush(Qt.white))
-        
-        self.rect = QGraphicsRectItem(0, 0, 200, 200)
-
-        self.rect.setPos(0, 0)
-
-        brush = QBrush(Qt.red)
-        self.rect.setBrush(brush)
-        self.rect.setPen(QPen(Qt.transparent))
-
-        
-        self.scene.addItem(self.rect)
 
         self._graphics = QGraphicsView(self.scene, self)
-        
+                
         self._graphics.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
 
@@ -140,12 +128,8 @@ class Simulation(QWidget):
         self.timer.start(0)
 
         self.add_items()
-       
-         
-    
     
     def updateView(self):
-        self.rect.setPos(self.rect.pos().x() + 1, self.rect.pos().y())
         r = self.scene.sceneRect()
         self._graphics.fitInView(r, Qt.KeepAspectRatio)
     
@@ -182,7 +166,7 @@ class Simulation(QWidget):
         nright = 0
         
         for blob in self._blobs:
-            if blob.position.x < SIM_WIDTH / 2:
+            if blob.position.x() < SIM_WIDTH / 2:
                 leftsums.size += blob.traits.size
                 leftsums.speed += blob.traits.speed
                 nleft += 1
@@ -220,8 +204,7 @@ class Simulation(QWidget):
     def on_loop(self):
         timdiff = self._loop_clock.nsecsElapsed() / 1000000000
         self._loop_clock.restart()
-        self.rect.moveBy(100*timdiff, 0)
-        
+                
         # print(timdiff)
         
         # if self._paused: return
@@ -260,7 +243,7 @@ class Simulation(QWidget):
         
     def add_items(self) -> Rect:
         # self._surface.fill((255, 255, 255))
-        # self._add_candies()
+        self._add_candies()
         self._add_blobs()
         # self._draw_separators()
         
@@ -398,8 +381,8 @@ class Simulation(QWidget):
 
         center = utils.bound_position(parent.position, utils.radius(area), self._separators())
         
-        return Vector2(x=center.x + r * math.cos(angle),
-                       y=center.y + r * math.sin(angle))
+        return QVector2D(x=center.x() + r * math.cos(angle),
+                       y=center.y() + r * math.sin(angle))
 
     def _reproduce(self, blob) -> Sequence[Blob]:
         f = lambda : self._offspring_position(parent=blob, area=60)
@@ -484,10 +467,7 @@ class Simulation(QWidget):
     
     def _add_candies(self):
         for candy in self._candies:
-            pygame.draw.circle(self._surface,
-                            self.CANDY_COLOR,
-                            candy.position,
-                            candy.radius())
+            self.scene.addItem(candy._ellipse)
 
     
     def _draw_separators(self):

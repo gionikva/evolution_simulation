@@ -1,6 +1,6 @@
 from collections.abc import Sequence, Callable
 from uuid import uuid4
-from pygame import time, Vector2, Color, Rect
+from pygame import time, Color, Rect
 from PySide6.QtGui import QVector2D, QBrush, QPen, QColor
 from PySide6.QtWidgets import QGraphicsEllipseItem
 from PySide6.QtCore import Qt
@@ -91,7 +91,7 @@ class Blob():
     def __init__(self, *,
                  traits = BlobTraits(size = 20.0,
                                     speed = 5.0),
-                 position=Vector2(0, 0),
+                 position=QVector2D(0, 0),
                  rng: Generator,
                  hue: float):
         
@@ -99,7 +99,7 @@ class Blob():
         # phenotypic traits:
         self.traits = traits
         # internal variables:
-        self.position: Vector2 = position
+        self.position: QVector2D = position
         
         # unique identifier
         self.id = uuid4().int
@@ -107,8 +107,8 @@ class Blob():
         self.age = 0.
         # self._candies: set[Candy] = gamestate[1]
         # self._blobs: set[Blob] = gamestate[0]
-        self.acc = Vector2(0, 0)
-        self.vel = Vector2(0, 0)
+        self.acc = QVector2D(0, 0)
+        self.vel = QVector2D(0, 0)
         # calculated values
         self.max_energy = self.ENERGY_SIZE_R * self.traits.size
         self.energy = self.max_energy / 2
@@ -116,24 +116,14 @@ class Blob():
         self.color = Color(0, 0, 0)
         self.color.hsla = (hue, 85, 45, 1)
         
-        self.create_item(hue)
+        self._create_graphics_item(hue)
         
     # creates QGraphicsItem needed to render the blob
-    def create_item(self, hue: float):
-        d = utils.radius(self.traits.size)*2
-        
-        self._ellipse = QGraphicsEllipseItem(self.position.x-d/2,
-                                             self.position.y-d/2, 
-                                             d,
-                                             d)
-        
-
-        
-        self._ellipse.setBrush(QBrush(QColor.fromHslF(hue, 1, 0.5, 1.)))
+    
         
     def distance_to(self, other):
-        return math.sqrt((self.position.x - other.position.x)**2 +
-                         (self.position.y - other.position.y)**2)
+        return math.sqrt((self.position.x() - other.position.x())**2 +
+                         (self.position.y() - other.position.y())**2)
     
         
     def time_born(self, paused_time: float, speed: float = 1.):
@@ -154,6 +144,20 @@ class Blob():
     
     def age_by(self, time: float):
         self.age += time
+        
+    # creates and saves the QGraphicsItem (ellipse)
+    # for rendering purposes
+    def _create_graphics_item(self, hue: float):
+        d = utils.radius(self.traits.size)*2
+        
+        self._ellipse = QGraphicsEllipseItem(self.position.x()-d/2,
+                                             self.position.y()-d/2, 
+                                             d,
+                                             d)
+        
+
+        self._ellipse.setPen(QPen(Qt.NoPen))
+        self._ellipse.setBrush(QBrush(QColor.fromHslF(hue, 1, 0.5, 1.)))
     
     def _move(self, 
               candies: list[Candy],
@@ -162,8 +166,8 @@ class Blob():
               timediff: float):
         def visible(candy: Candy) -> bool:
             for sep in separators:
-                if sep.clipline((self.position.x, self.position.y),
-                                (candy.position.x, candy.position.y)) != ():
+                if sep.clipline((self.position.x(), self.position.y()),
+                                (candy.position.x(), candy.position.y())) != ():
                     return False
             return True
         
@@ -173,8 +177,8 @@ class Blob():
             return
         
         dist = self.distance_to(candy)
-        displacement = Vector2(candy.position.x - self.position.x,
-                            candy.position.y - self.position.y)
+        displacement = QVector2D(candy.position.x() - self.position.x(),
+                            candy.position.y() - self.position.y())
         
         
         # New (basic) movement logic
@@ -211,9 +215,7 @@ class Blob():
 
         movement = self.position - oldpos
         
-        # slope = movement.y / movement.x
-        
-        
+        # slope = movement.y() / movement.x()
             
         self.energy -= (Blob.ENERGY_EXP_SIZE_R * self.traits.size) * movement.magnitude() * \
             (1 + Blob.VEL_ENERGY_MULT * self.vel.magnitude())
@@ -250,7 +252,7 @@ class Blob():
                   mean_traits: BlobTraits,
                   sdvs: MutationSdvs,
                   separators: tuple[Rect, Rect],
-                  gen_position: Callable[[], Vector2] = None) -> Self:
+                  gen_position: Callable[[], QVector2D] = None) -> Self:
             size = max(utils.sample_normal(rng=rng,
                                      mean=mean_traits.size,
                                      std_dev=sdvs.size), Blob.MIN_SIZE)
@@ -261,7 +263,7 @@ class Blob():
             radius = utils.radius(size) 
             
             if gen_position == None:
-                position = Vector2(rng.uniform(radius, SIM_WIDTH - radius),
+                position = QVector2D(rng.uniform(radius, SIM_WIDTH - radius),
                         rng.uniform(radius, SIM_HEIGHT - radius))
             else:
                 position = gen_position()

@@ -1,7 +1,8 @@
 import math
 from classes.constants import *
 from numpy.random import Generator
-from pygame import Vector2, Rect
+from PySide6.QtGui import QVector2D
+from pygame import  Rect
 
 class utils:
     def radius(size: float) -> float:
@@ -26,29 +27,29 @@ class utils:
         clamped = min(max(start, value), end)
         return (clamped, clamped == value)
     
-    def rect_intersect(position: Vector2, radius: float, rect: Rect) -> tuple[bool, Vector2]:
-        cleft, cright = (position.x - radius, position.x + radius)
-        ctop, cbottom = (position.y - radius, position.y + radius)
+    def rect_intersect(position: QVector2D, radius: float, rect: Rect) -> tuple[bool, QVector2D]:
+        cleft, cright = (position.x() - radius, position.x() + radius)
+        ctop, cbottom = (position.y() - radius, position.y() + radius)
                     
-        if rect.top <= position.y <= rect.bottom:
+        if rect.top <= position.y() <= rect.bottom:
             if cright > rect.left and cleft < rect.left:
-                return (True, Vector2(rect.left - radius, position.y))
+                return (True, QVector2D(rect.left - radius, position.y()))
             
             if cleft < rect.right and cright > rect.right:
-                return (True, Vector2(rect.right + radius, position.y))
+                return (True, QVector2D(rect.right + radius, position.y()))
     
-        if rect.left <= position.x <= rect.right:
+        if rect.left <= position.x() <= rect.right:
             if ctop < rect.bottom and cbottom > rect.bottom:
-                return (True, Vector2(position.x, rect.bottom + radius))
+                return (True, QVector2D(position.x(), rect.bottom + radius))
             
             if cbottom > rect.top and ctop < rect.top:
-                return (True, Vector2(position.x, rect.top - radius))
+                return (True, QVector2D(position.x(), rect.top - radius))
             
         for corner in [rect.bottomleft, rect.bottomright, rect.topleft, rect.topright]:
-            dist = math.sqrt((corner[0] - position.x)**2 + (corner[1]-position.y)**2)
+            dist = math.sqrt((corner[0] - position.x())**2 + (corner[1]-position.y())**2)
             if dist < radius:
-                s = Vector2(corner[0] - position.x, corner[1] - position.y)
-                r = (s / s.magnitude()) * radius
+                s = QVector2D(corner[0] - position.x(), corner[1] - position.y())
+                r = (s / s.length()) * radius
                 m = s - r
                 return (True, position + m)
                     
@@ -56,10 +57,10 @@ class utils:
     
     # Used to bound the position of a blob within the
     # dimensions of the screen.
-    def bound_position(position: Vector2, radius: float, separators: tuple[Rect, Rect]) -> tuple[Vector2, bool]:
-        bx, clampedx = utils._clamp(position.x, radius, SIM_WIDTH-radius)
-        by, clampedy =  utils._clamp(position.y, radius, SIM_HEIGHT-radius)
-        pos = Vector2(bx, by)
+    def bound_position(position: QVector2D, radius: float, separators: tuple[Rect, Rect]) -> tuple[QVector2D, bool]:
+        bx, clampedx = utils._clamp(position.x(), radius, SIM_WIDTH-radius)
+        by, clampedy =  utils._clamp(position.y(), radius, SIM_HEIGHT-radius)
+        pos = QVector2D(bx, by)
     
         top, bottom = separators
         
