@@ -203,21 +203,18 @@ class Simulation(QWidget):
     
     
     def on_loop(self):
-        timdiff = self._loop_clock.nsecsElapsed() / 1000000000
+        if self._paused: return
+        
+        timediff = self._sim_speed * self._loop_clock.nsecsElapsed() / 1000000000
         self._loop_clock.restart()
-                
-        # print(timdiff)
         
-        # if self._paused: return
+        self._time += timediff
         
-        # timediff = self._sim_speed * self._loop_clock.tick() / 1000
-        # self._time += timediff
+        deadblobs = []
+        newblobs = []
         
-        # deadblobs = []
-        # newblobs = []
-        
-        # for blob in self._blobs:
-        #     eaten_candies =  self._move_blob(blob, timediff)
+        for blob in self._blobs:
+            eaten_candies = self._move_blob(blob, timediff)
         #     self._passive_energy_loss(blob, timediff)
         #     blob.age_by(timediff)
         #     dead, offspring = self._lifecycle_blob(blob, timediff)

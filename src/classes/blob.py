@@ -182,7 +182,7 @@ class Blob():
         
         
         # New (basic) movement logic
-        # d_norm = displacement / displacement.magnitude()
+        # d_norm = displacement / displacement.length()
         
         # blob.vel = d_norm * blob.traits.speed
         
@@ -197,14 +197,14 @@ class Blob():
         
        
         
-        if self.vel.magnitude() > self.traits.speed:
-            self.vel = self.vel * self.traits.speed / self.vel.magnitude()
+        if self.vel.length() > self.traits.speed:
+            self.vel = self.vel * self.traits.speed / self.vel.length()
         # self._vel = min(self._vel, self.traits.speed)
         
         fvel = self.vel + 0.2 * self.acc
         
-        if fvel.magnitude() > self.traits.speed:
-            fvel = fvel * self.traits.speed / fvel.magnitude()
+        if fvel.length() > self.traits.speed:
+            fvel = fvel * self.traits.speed / fvel.length()
         
         movement = fvel * timediff
                 
@@ -217,8 +217,10 @@ class Blob():
         
         # slope = movement.y() / movement.x()
             
-        self.energy -= (Blob.ENERGY_EXP_SIZE_R * self.traits.size) * movement.magnitude() * \
-            (1 + Blob.VEL_ENERGY_MULT * self.vel.magnitude())
+        self.energy -= (Blob.ENERGY_EXP_SIZE_R * self.traits.size) * movement.length() * \
+            (1 + Blob.VEL_ENERGY_MULT * self.vel.length())
+            
+        self._ellipse.moveBy(movement.x(), movement.y())
     
     def _death(self):
         pass
